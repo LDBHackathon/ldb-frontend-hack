@@ -86,7 +86,7 @@ export function OnboardingShell({
                         className={
                           `flex h-12 w-12 items-center justify-center rounded-full text-sm font-semibold ${
                             i + 1 < currentStep
-                              ? "bg-[#06b6d4] text-black"
+                              ? "bg-[#00C2A8] text-black"
                               : i + 1 === currentStep
                               ? "bg-[#07182a] text-white"
                               : "bg-white border border-slate-200 text-slate-400"
@@ -102,8 +102,8 @@ export function OnboardingShell({
 
                       {i !== steps.length - 1 && (
                         <div
-                          className={`mx-6 flex-1 self-center h-1 ${
-                            i + 1 < currentStep ? "bg-[#06b6d4]" : "bg-slate-200"
+                          className={`mx-1 flex-1 mt-7 self-center h-1 ${
+                            i + 1 < currentStep ? "bg-[#00C2A8]" : "bg-slate-200"
                           }`}
                         />
                       )}
@@ -116,7 +116,7 @@ export function OnboardingShell({
                     <div key={label} className="w-1/5 text-center text-xs">
                       <span
                         className={
-                          `block tracking-wide ${i + 1 === currentStep ? "font-semibold text-slate-900" : "text-slate-400"}`
+                          `block tracking-wide mr-16 ${i + 1 === currentStep ? "font-semibold text-slate-900" : "text-slate-400"}`
                         }
                       >
                         {label}
