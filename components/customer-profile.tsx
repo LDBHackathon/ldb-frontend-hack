@@ -2,11 +2,9 @@
 
 import React, { useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, Copy, Download } from "lucide-react"
+import { ArrowLeft, Zap, Copy, Download, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
 import {
   Table,
   TableBody,
@@ -16,33 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { toast } from "sonner"
-import { getCustomerById, type Customer } from "@/lib/mockData"
-
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case "Underpayment":
-      return "bg-orange-100 text-orange-700"
-    case "Normal":
-      return "bg-green-100 text-green-700"
-    case "Misdirected":
-      return "bg-red-100 text-red-700"
-    default:
-      return "bg-gray-100 text-gray-700"
-  }
-}
-
-const getAvatarColor = (status: string) => {
-  switch (status) {
-    case "Normal":
-      return "bg-emerald-400"
-    case "Underpayment":
-      return "bg-orange-400"
-    case "Misdirected":
-      return "bg-red-400"
-    default:
-      return "bg-slate-400"
-  }
-}
+import { getCustomerById } from "@/lib/mockData"
 
 interface CustomerProfileProps {
   customerId: string
@@ -50,7 +22,7 @@ interface CustomerProfileProps {
 
 export function CustomerProfile({ customerId }: CustomerProfileProps) {
   const customer = getCustomerById(customerId)
-  const [searchQuery, setSearchQuery] = useState("")
+  const [flagFilter, setFlagFilter] = useState("all")
 
   if (!customer) {
     return (
@@ -58,12 +30,17 @@ export function CustomerProfile({ customerId }: CustomerProfileProps) {
         <h2 className="text-2xl font-bold text-slate-900 mb-4">
           Customer Not Found
         </h2>
-        <Link href="/dashboard/customers" className="text-teal-500 hover:text-teal-600">
+        <Link href="/dashboard/customers" className="text-teal-500 hover:text-teal-600 font-medium">
           Back to Customers
         </Link>
       </div>
     )
   }
+
+  // Safe data normalized lookups across dynamic schemas
+  const dateJoined = customer.dateJoined || "Jan 2025"
+  const clientName = customer.clientName || "LDB Africa"
+  const bankName = customer.bank || "GTBank"
 
   const handleCopyNuban = () => {
     navigator.clipboard.writeText(customer.nuban)
@@ -71,14 +48,15 @@ export function CustomerProfile({ customerId }: CustomerProfileProps) {
   }
 
   const handleExportStatement = () => {
+    const txns = customer.transactions || []
     const csv = [
-      ["Date", "Reference", "Description", "Amount", "Tags"],
-      ...customer.transactions.map((txn) => [
+      ["Date", "Reference", "Description", "Amount", "Flags"],
+      ...txns.map((txn) => [
         txn.date,
         txn.reference,
         txn.description,
         txn.amount,
-        txn.tags.join("; "),
+        txn.tags?.join("; ") || txn.flag || "",
       ]),
     ]
       .map((row) => row.join(","))
@@ -93,254 +71,214 @@ export function CustomerProfile({ customerId }: CustomerProfileProps) {
     window.URL.revokeObjectURL(url)
   }
 
-  const filteredTransactions = customer.transactions.filter(
-    (txn) =>
-      txn.date.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      txn.reference.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      txn.description.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  // Filter transactions based on selection dropdown array
+  const rawTransactions = customer.transactions || []
+  const filteredTransactions = rawTransactions.filter((txn) => {
+    if (flagFilter === "all") return true
+    const currentFlags = txn.tags || [txn.flag]
+    return currentFlags.some((f) => f?.toLowerCase() === flagFilter.toLowerCase())
+  })
 
   return (
-    <div className="w-full">
-      {/* Header with back button */}
-      <div className="flex items-center gap-4 mb-6">
+    <div className="space-y-6 w-full">
+      {/* Portfolio Title Header Row */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Portfolio</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Customer profile & statement</p>
+        </div>
         <Link href="/dashboard/customers">
-          <Button variant="ghost" size="sm" className="gap-2">
+          <Button variant="outline" className="gap-2 border-slate-200 text-slate-700 bg-white h-9 shadow-xs">
             <ArrowLeft className="h-4 w-4" />
             Customers
           </Button>
         </Link>
       </div>
 
-      {/* Portfolio Title */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900">Portfolio</h1>
-        <p className="text-sm text-slate-500 mt-1">Customer profile & statement</p>
+      {/* Live Testing Simulation Banner */}
+      <div className="bg-[#0B1E33] text-slate-200 px-5 py-3.5 rounded-xl flex items-center justify-between shadow-xs border border-slate-800/40">
+        <div className="flex items-center gap-3 text-sm">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
+          </span>
+          <p className="text-slate-300 font-medium">
+            Live testing mode <span className="text-slate-400 font-normal">· Simulate an incoming bank transfer to test DVA reconciliation</span>
+          </p>
+        </div>
+        <Button className="bg-[#00BFA5] hover:bg-[#00A892] text-[#0B1E33] font-bold gap-2 h-9 px-4 rounded-lg shadow-sm transition-colors">
+          <Zap className="h-3.5 w-3.5 fill-current" />
+          Simulate transfer
+        </Button>
       </div>
 
-      {/* Customer Banner Card */}
-      <Card className="mb-8 overflow-hidden bg-linear-to-r from-slate-900 to-[#0f2a3d]">
-        <div className="p-6 text-slate-50">
-          <div className="flex items-start justify-between mb-6">
-            <div className="flex items-start gap-4">
-              <div
-                className={`h-12 w-12 rounded-full ${getAvatarColor(
-                  customer.status
-                )} flex items-center justify-center text-lg font-semibold text-white`}
-              >
-                {customer.avatar}
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold">{customer.name}</h2>
-                <p className="text-sm text-slate-300 mt-1">{customer.email}</p>
-                <p className="text-xs text-slate-400 mt-2">
-                  Customer since {customer.dateJoined}
-                </p>
-              </div>
+      {/* Customer Profile Identity Box */}
+      <div className="bg-[#0B1E33] text-white p-6 rounded-xl space-y-6 border border-slate-800/40 shadow-xs">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-4">
+            <div className="h-14 w-14 rounded-xl bg-[#00BFA5]/20 text-[#00BFA5] flex items-center justify-center text-lg font-bold border border-[#00BFA5]/30">
+              {customer.avatar}
             </div>
-            <Badge
-              variant="outline"
-              className={`${getStatusColor(
-                customer.status
-              )} border-0 ml-auto`}
-            >
-              {customer.status}
-            </Badge>
+            <div>
+              <h2 className="text-xl font-bold tracking-tight">{customer.name}</h2>
+              <p className="text-sm text-slate-400 mt-0.5">
+                {customer.email} · Customer since {dateJoined}
+              </p>
+            </div>
           </div>
+          
+          {/* Status Badge */}
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+            {customer.status === "Underpayment" ? "Underpaid" : customer.status}
+          </span>
+        </div>
 
-          {/* NUBAN Container */}
-          <div className="bg-[#0a1a2e] rounded-lg p-4 space-y-3">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+        {/* NUBAN Nested Display */}
+        <div className="bg-[#112741] border border-slate-800/80 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest font-sans">
               Dedicated Virtual Account (NUBAN)
             </p>
-            <p className="text-2xl font-mono font-bold">
-              {customer.nuban} · {customer.clientName} / {customer.bank}
+            <p className="font-mono text-sm tracking-wide text-slate-300">
+              <span className="text-white font-semibold text-base tracking-normal">{customer.nuban}</span> · {clientName} {customer.name} / {bankName}
             </p>
-            <div className="flex gap-2 pt-2">
-              <Button
-                onClick={handleCopyNuban}
-                variant="outline"
-                size="sm"
-                className="gap-2 border-slate-600 text-slate-50 hover:bg-slate-800"
-              >
-                <Copy className="h-4 w-4" />
-                Copy NUBAN
-              </Button>
-              <Button
-                onClick={handleExportStatement}
-                variant="outline"
-                size="sm"
-                className="gap-2 border-slate-600 text-slate-50 hover:bg-slate-800"
-              >
-                <Download className="h-4 w-4" />
-                Statement
-              </Button>
-            </div>
+          </div>
+          <div className="flex items-center gap-2 self-end sm:self-center">
+            <Button 
+              onClick={handleCopyNuban}
+              variant="ghost" 
+              className="h-9 text-slate-300 hover:text-white hover:bg-slate-800/50 gap-2 text-xs border border-slate-700/60 rounded-lg px-3.5"
+            >
+              <Copy className="h-3.5 w-3.5 text-slate-400" />
+              Copy NUBAN
+            </Button>
+            <Button 
+              onClick={handleExportStatement}
+              variant="ghost" 
+              className="h-9 text-slate-300 hover:text-white hover:bg-slate-800/50 gap-2 text-xs border border-slate-700/60 rounded-lg px-3.5"
+            >
+              <Download className="h-3.5 w-3.5 text-slate-400" />
+              Statement
+            </Button>
           </div>
         </div>
-      </Card>
+      </div>
 
-      {/* Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      {/* Financial Summary KPI Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Target Amount */}
-        <Card className="p-6">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-            Target Amount
+        <Card className="bg-white border-slate-200/80 p-5 shadow-xs rounded-xl">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Target Amount</p>
+          <p className="text-2xl font-bold text-slate-950 mt-2 font-mono tracking-tight">
+            ₦{customer.targetAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </p>
-          <p className="text-3xl font-bold text-slate-900">
-            ₦{customer.targetAmount.toLocaleString("en-US", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
-          </p>
-          <p className="text-sm text-slate-500 mt-2">Investment goal</p>
+          <p className="text-xs text-slate-400 mt-2.5 font-medium">Investment goal</p>
         </Card>
 
-        {/* Total Deposited */}
-        <Card className="p-6">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-            Total Deposited
+        {/* Total Deposited (Amber progress theme) */}
+        <Card className="bg-white border-slate-200/80 p-5 shadow-xs rounded-xl">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Deposited</p>
+          <p className="text-2xl font-bold text-amber-500 mt-2 font-mono tracking-tight">
+            ₦{customer.totalDeposited.toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </p>
-          <p className="text-3xl font-bold text-orange-600">
-            ₦{customer.totalDeposited.toLocaleString("en-US", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
-          </p>
-          <div className="mt-3">
-            <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
-              <div
-                className={`h-full ${
-                  customer.progressPercentage === 100
-                    ? "bg-emerald-500"
-                    : "bg-orange-400"
-                }`}
-                style={{
-                  width: `${customer.progressPercentage}%`,
-                }}
-              ></div>
-            </div>
-            <p className="text-xs text-slate-500 mt-1">
-              {customer.progressPercentage}% funded
-            </p>
+          <div className="w-full bg-slate-100 h-1.5 rounded-full mt-4 overflow-hidden">
+            <div className="bg-amber-500 h-full transition-all" style={{ width: `${customer.progressPercentage}%` }}></div>
           </div>
+          <p className="text-xs text-slate-400 mt-2 font-medium">{customer.progressPercentage}% funded</p>
         </Card>
 
         {/* Outstanding Balance */}
-        <Card className="p-6">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-            Outstanding Balance
+        <Card className="bg-white border-slate-200/80 p-5 shadow-xs rounded-xl">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Outstanding Balance</p>
+          <p className="text-2xl font-bold text-rose-500 mt-2 font-mono tracking-tight">
+            ₦{customer.outstandingBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </p>
-          <p className="text-3xl font-bold text-red-600">
-            ₦{customer.outstandingBalance.toLocaleString("en-US", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
-          </p>
-          <p className="text-sm text-slate-500 mt-2">Remaining to target</p>
+          <p className="text-xs text-slate-400 mt-2.5 font-medium">Remaining to target</p>
         </Card>
       </div>
 
-      {/* Transaction History */}
-      <Card>
-        <div className="p-6 border-b border-slate-200">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-bold text-slate-900">
-              Transaction history
-            </h3>
-            <Button
+      {/* Transaction History Data Sheet Component */}
+      <Card className="bg-white border-slate-200/80 shadow-xs rounded-xl overflow-hidden">
+        <div className="p-5 border-b border-slate-100 flex items-center justify-between flex-wrap gap-4">
+          <h3 className="font-bold text-slate-900 text-base">Transaction history</h3>
+          
+          <div className="flex items-center gap-2">
+            {/* Filter Dropdown select tool */}
+            <div className="relative">
+              <select 
+                value={flagFilter}
+                onChange={(e) => setFlagFilter(e.target.value)}
+                className="appearance-none flex items-center justify-between border border-slate-200 rounded-lg pl-3 pr-8 py-1.5 text-xs font-medium bg-white text-slate-700 min-w-[110px] shadow-2xs cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-slate-300"
+              >
+                <option value="all">All flags</option>
+                <option value="underpayment">Underpaid</option>
+                <option value="reversed">Reversed</option>
+              </select>
+              <ChevronDown className="h-3.5 w-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+
+            <Button 
               onClick={handleExportStatement}
-              variant="outline"
-              size="sm"
-              className="gap-2"
+              variant="outline" 
+              className="gap-1.5 border-slate-200 text-slate-700 h-8 px-3 text-xs shadow-2xs font-medium bg-white"
             >
-              <Download className="h-4 w-4" />
+              <Download className="h-3.5 w-3.5 text-slate-400" />
               Export CSV
             </Button>
           </div>
         </div>
 
-        {/* Search Bar */}
-        <div className="p-6 border-b border-slate-200">
-          <Input
-            type="text"
-            placeholder="Search by date, reference, or description..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="border-slate-200"
-          />
-        </div>
-
-        {/* Transactions Table */}
+        {/* Dynamic Table Layout */}
         <div className="overflow-x-auto">
           <Table>
-            <TableHeader className="bg-slate-50">
-              <TableRow>
-                <TableHead className="text-slate-700 font-semibold">
-                  DATE
-                </TableHead>
-                <TableHead className="text-slate-700 font-semibold">
-                  REFERENCE
-                </TableHead>
-                <TableHead className="text-slate-700 font-semibold">
-                  DESCRIPTION
-                </TableHead>
-                <TableHead className="text-slate-700 font-semibold">
-                  AMOUNT
-                </TableHead>
-                <TableHead className="text-slate-700 font-semibold">
-                  TAGS
-                </TableHead>
+            <TableHeader className="bg-slate-50/70">
+              <TableRow className="border-b border-slate-100">
+                <TableHead className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-5 py-3.5">Date</TableHead>
+                <TableHead className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-5 py-3.5">Reference</TableHead>
+                <TableHead className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-5 py-3.5">Description</TableHead>
+                <TableHead className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-5 py-3.5">Amount</TableHead>
+                <TableHead className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-5 py-3.5">Flags</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredTransactions.map((transaction) => (
-                <TableRow key={transaction.id} className="hover:bg-slate-50">
-                  <TableCell className="text-slate-900 font-medium">
-                    {transaction.date}
-                  </TableCell>
-                  <TableCell className="text-slate-700 text-sm font-mono">
-                    {transaction.reference}
-                  </TableCell>
-                  <TableCell className="text-slate-700 text-sm">
-                    {transaction.description}
-                  </TableCell>
-                  <TableCell className="text-slate-900 font-semibold">
-                    ₦{transaction.amount.toLocaleString("en-US", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1 flex-wrap">
-                      {transaction.tags.map((tag) => (
-                        <Badge
-                          key={tag}
-                          variant="outline"
-                          className={`${
-                            tag === "Underpayment"
-                              ? "bg-orange-100 text-orange-700 border-0"
-                              : tag === "Normal"
-                                ? "bg-green-100 text-green-700 border-0"
-                                : "bg-red-100 text-red-700 border-0"
-                          }`}
-                        >
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
+              {filteredTransactions.length > 0 ? (
+                filteredTransactions.map((txn, index) => {
+                  const isReversed = txn.tags?.includes("Reversed") || txn.flag === "Reversed" || txn.amount === 0
+                  return (
+                    <TableRow key={index} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/40 transition-colors">
+                      <TableCell className="px-5 py-4 text-sm text-slate-600 font-medium">{txn.date}</TableCell>
+                      <TableCell className="px-5 py-4 text-xs text-slate-400 font-mono tracking-tight">{txn.reference}</TableCell>
+                      <TableCell className="px-5 py-4 text-sm text-slate-600">{txn.description}</TableCell>
+                      <TableCell className={`px-5 py-4 text-sm font-bold font-mono ${isReversed ? "text-rose-500" : "text-slate-900"}`}>
+                        ₦{txn.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="px-5 py-4">
+                        {isReversed ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-rose-50 text-rose-600 border border-rose-100">
+                            <span className="h-1.5 w-1.5 rounded-full bg-rose-500"></span>
+                            Reversed
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-600 border border-amber-100">
+                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+                            Underpaid
+                          </span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-sm text-slate-400">
+                    No transactions matching filter criteria.
                   </TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
         </div>
-
-        {filteredTransactions.length === 0 && (
-          <div className="p-6 text-center">
-            <p className="text-slate-500">No transactions found</p>
-          </div>
-        )}
       </Card>
     </div>
   )

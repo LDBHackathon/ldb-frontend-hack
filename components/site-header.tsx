@@ -22,7 +22,7 @@ export function SiteHeader() {
         /> */}
         <div className="flex flex-col gap-1">
           <h1 className="text-base font-semibold text-slate-900">Dashboard</h1>
-          <p className="text-xs text-slate-500">WealthVault · {formattedDate}</p>
+          <p className="text-xs text-slate-500">LDB Africa · {formattedDate}</p>
         </div>
       </div>
       <div className="px-4 lg:px-6">

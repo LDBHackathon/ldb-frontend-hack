@@ -14,11 +14,11 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { LayoutDashboardIcon, ListIcon, ShieldCheck, ChartBarIcon, FolderIcon, UsersIcon, CameraIcon, FileTextIcon, Settings2Icon, CircleHelpIcon, SearchIcon, DatabaseIcon, FileChartColumnIcon, FileIcon, CommandIcon } from "lucide-react"
+import { LayoutDashboardIcon, ListIcon, ShieldCheck, ChartBarIcon, FolderIcon, UsersIcon, CameraIcon, FileTextIcon, Settings2Icon, CircleHelpIcon, SearchIcon, DatabaseIcon, FileChartColumnIcon, FileIcon, ReceiptText } from "lucide-react"
 
 const data = {
   user: {
-    name: "shadcn",
+    name: "Amara Ulo",
     app: "WALLETVAULT",
     avatar: "/avatars/shadcn.jpg",
   },
@@ -35,7 +35,7 @@ const data = {
       title: "Customers",
       url: "/dashboard/customers",
       icon: (
-        <ListIcon
+        <UsersIcon
         />
       ),
     },
@@ -43,7 +43,7 @@ const data = {
       title: "Transactions",
       url: "/dashboard/transactions",
       icon: (
-        <ChartBarIcon
+        <ReceiptText
         />
       ),
     },
@@ -51,7 +51,7 @@ const data = {
       title: "Settings",
       url: "/dashboard/settings",
       icon: (
-        <FolderIcon
+        <Settings2Icon
         />
       ),
     },

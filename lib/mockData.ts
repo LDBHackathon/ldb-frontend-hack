@@ -8,6 +8,18 @@ export interface Transaction {
   tags: string[]
 }
 
+export interface TransactionData {
+  id: string
+  customerName: string
+  bank: string
+  reference: string
+  date: string
+  type: "deposit" | "withdrawal"
+  amount: number
+  flag: "Normal" | "Underpaid" | "Overpaid"
+  status: "Success" | "Failed"
+}
+
 export interface Customer {
   id: string
   name: string
@@ -180,4 +192,121 @@ export const searchCustomers = (query: string): Customer[] => {
       customer.bank.toLowerCase().includes(lowerQuery) ||
       customer.nuban.includes(query)
   )
+}
+
+//transaction
+
+
+export const mockTransactions: TransactionData[] = [
+  {
+    id: "1",
+    customerName: "Adaeze Okonkwo",
+    bank: "GTBank",
+    reference: "TXN-9A4F-B21C-8E3D",
+    date: "15 Jul 2025",
+    type: "deposit",
+    amount: 60000,
+    flag: "Underpaid",
+    status: "Success",
+  },
+  {
+    id: "2",
+    customerName: "Chidi Eze",
+    bank: "Zenith Bank",
+    reference: "TXN-3B2C-A94F-21DE",
+    date: "14 Jul 2025",
+    type: "deposit",
+    amount: 100000,
+    flag: "Normal",
+    status: "Success",
+  },
+  {
+    id: "3",
+    customerName: "Funmi Adesanya",
+    bank: "GTBank",
+    reference: "TXN-5C1A-D472-3F8B",
+    date: "13 Jul 2025",
+    type: "deposit",
+    amount: 220000,
+    flag: "Overpaid",
+    status: "Success",
+  },
+  {
+    id: "4",
+    customerName: "Chidi Eze",
+    bank: "Access Bank",
+    reference: "TXN-8E1D-4A2B-77CF",
+    date: "12 Jul 2025",
+    type: "withdrawal",
+    amount: 35000,
+    flag: "Normal",
+    status: "Success",
+  },
+  {
+    id: "5",
+    customerName: "Emeka Nwosu",
+    bank: "First Bank",
+    reference: "TXN-7F2E-C380-9B1A",
+    date: "12 Jul 2025",
+    type: "deposit",
+    amount: 80000,
+    flag: "Underpaid",
+    status: "Success",
+  },
+  {
+    id: "6",
+    customerName: "Ngozi Uche",
+    bank: "UBA",
+    reference: "TXN-7D1E-C380-2A55",
+    date: "11 Jul 2025",
+    type: "deposit",
+    amount: 25000,
+    flag: "Normal",
+    status: "Failed",
+  },
+]
+
+// Derived metrics
+export const totalDeposits = mockTransactions
+  .filter((t) => t.type === "deposit" && t.status === "Success")
+  .reduce((sum, t) => sum + t.amount, 0)
+
+export const totalWithdrawals = mockTransactions
+  .filter((t) => t.type === "withdrawal" && t.status === "Success")
+  .reduce((sum, t) => sum + t.amount, 0)
+
+export const netPosition = totalDeposits - totalWithdrawals
+
+// Filter helpers
+export type TransactionTypeFilter = "all" | "deposit" | "withdrawal"
+export type TransactionFlagFilter = "all" | "Normal" | "Underpaid" | "Overpaid"
+export type TransactionStatusFilter = "all" | "Success" | "Failed"
+
+export function filterTransactions(
+  transactions: TransactionData[],
+  searchQuery: string,
+  typeFilter: TransactionTypeFilter,
+  flagFilter: TransactionFlagFilter,
+  statusFilter: TransactionStatusFilter
+): TransactionData[] {
+  return transactions.filter((t) => {
+    // Search filter
+    const searchLower = searchQuery.toLowerCase()
+    const matchesSearch =
+      !searchQuery ||
+      t.customerName.toLowerCase().includes(searchLower) ||
+      t.reference.toLowerCase().includes(searchLower) ||
+      t.bank.toLowerCase().includes(searchLower)
+
+    // Type filter
+    const matchesType = typeFilter === "all" || t.type === typeFilter
+
+    // Flag filter
+    const matchesFlag = flagFilter === "all" || t.flag === flagFilter
+
+    // Status filter
+    const matchesStatus = statusFilter === "all" || t.status === statusFilter
+
+    return matchesSearch && matchesType && matchesFlag && matchesStatus
+  })
 }

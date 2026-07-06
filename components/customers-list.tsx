@@ -16,6 +16,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { mockCustomers, type Customer, searchCustomers } from "@/lib/mockData"
+import { LiveTestBanner } from "./live-test-banner"
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -86,7 +87,7 @@ export function CustomersList() {
   return (
     <div className="w-full">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 px-6 py-3 bg-white">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Customers</h1>
           <p className="text-sm text-slate-500 mt-1">
@@ -102,42 +103,29 @@ export function CustomersList() {
           Export
         </Button>
       </div>
+      <div className="max-w-7xl mx-auto px-6">
 
       {/* Live Testing Banner */}
-      <div className="mb-6 rounded-lg bg-[#07182a] p-4 text-slate-50 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-emerald-400"></div>
-          <span className="text-sm">
-            Live testing mode · Simulate an incoming bank transfer to test DVA
-            reconciliation
-          </span>
-        </div>
-        <Button
-          variant="ghost"
-          className="bg-teal-400 text-slate-950 hover:bg-teal-500"
-        >
-          Simulate transfer
-        </Button>
-      </div>
+      <LiveTestBanner />
 
       {/* Search Bar */}
-      <div className="mb-6 relative">
+      <div className="my-6 relative ">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
         <Input
           type="text"
           placeholder="Search by customer or bank..."
           value={searchQuery}
           onChange={handleSearch}
-          className="pl-10 h-10 border-slate-200"
+          className="pl-10 h-10 border-slate-200 bg-white"
         />
       </div>
 
       {/* Customers Table */}
       <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto bg-white">
           <Table>
-            <TableHeader className="bg-slate-50">
-              <TableRow>
+            <TableHeader className="">
+              <TableRow className="[&>th]:py-4">
                 <TableHead className="text-slate-700 font-semibold">
                   CUSTOMER
                 </TableHead>
@@ -160,7 +148,7 @@ export function CustomersList() {
             </TableHeader>
             <TableBody>
               {displayedCustomers.map((customer) => (
-                <TableRow key={customer.id} className="hover:bg-slate-50">
+                <TableRow key={customer.id} className="hover:bg-slate-50 [&>td]:py-4">
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <div
@@ -235,6 +223,7 @@ export function CustomersList() {
           </Table>
         </div>
       </Card>
+      </div>
     </div>
   )
 }
