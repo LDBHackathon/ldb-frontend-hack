@@ -54,10 +54,13 @@ export default function Page() {
                 Sign in
               </Button>
             </Link>
-            <Button size="sm" className="bg-teal-400 text-[#06251f] hover:bg-teal-300">
-              Get API access
-            </Button>
+            <Link href="/onboarding/account">
+              <Button size="sm" className="bg-teal-400 text-[#06251f] hover:bg-teal-300">
+                Get API access
+              </Button>
+            </Link>
           </div>
+        
 
           {/* Mobile hamburger */}
           <button
