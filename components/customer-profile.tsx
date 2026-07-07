@@ -14,7 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { toast } from "sonner"
-import { getCustomerById } from "@/lib/mockData"
+import { getCustomerById, type Transaction } from "@/lib/mockData"
 
 interface CustomerProfileProps {
   customerId: string
@@ -37,10 +37,13 @@ export function CustomerProfile({ customerId }: CustomerProfileProps) {
     )
   }
 
-  // Safe data normalized lookups across dynamic schemas
-  const dateJoined = customer.dateJoined || "Jan 2025"
-  const clientName = customer.clientName || "LDB Africa"
-  const bankName = customer.bank || "GTBank"
+  // Safe helper to extract and normalize tags into the UI display flag strings
+  const getTransactionFlag = (txn: Transaction): string => {
+    const primaryTag = txn.tags && txn.tags.length > 0 ? txn.tags[0] : "Normal"
+    if (primaryTag === "Misdirected") return "Reversed"
+    if (primaryTag === "Underpayment") return "Underpaid"
+    return primaryTag
+  }
 
   const handleCopyNuban = () => {
     navigator.clipboard.writeText(customer.nuban)
@@ -50,13 +53,13 @@ export function CustomerProfile({ customerId }: CustomerProfileProps) {
   const handleExportStatement = () => {
     const txns = customer.transactions || []
     const csv = [
-      ["Date", "Reference", "Description", "Amount", "Flags"],
+      ["Date", "Reference", "Description", "Amount", "Flag"],
       ...txns.map((txn) => [
         txn.date,
         txn.reference,
         txn.description,
         txn.amount,
-        txn.tags?.join("; ") || txn.flag || "",
+        getTransactionFlag(txn),
       ]),
     ]
       .map((row) => row.join(","))
@@ -71,12 +74,12 @@ export function CustomerProfile({ customerId }: CustomerProfileProps) {
     window.URL.revokeObjectURL(url)
   }
 
-  // Filter transactions based on selection dropdown array
+  // Filter nested customer transactions cleanly using the safe helper string
   const rawTransactions = customer.transactions || []
   const filteredTransactions = rawTransactions.filter((txn) => {
     if (flagFilter === "all") return true
-    const currentFlags = txn.tags || [txn.flag]
-    return currentFlags.some((f) => f?.toLowerCase() === flagFilter.toLowerCase())
+    const transactionFlag = getTransactionFlag(txn).toLowerCase()
+    return transactionFlag === flagFilter.toLowerCase()
   })
 
   return (
@@ -122,12 +125,12 @@ export function CustomerProfile({ customerId }: CustomerProfileProps) {
             <div>
               <h2 className="text-xl font-bold tracking-tight">{customer.name}</h2>
               <p className="text-sm text-slate-400 mt-0.5">
-                {customer.email} · Customer since {dateJoined}
+                {customer.email} · Customer since {customer.dateJoined}
               </p>
             </div>
           </div>
           
-          {/* Status Badge */}
+          {/* Top Status Badge */}
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20">
             <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
             {customer.status === "Underpayment" ? "Underpaid" : customer.status}
@@ -141,7 +144,7 @@ export function CustomerProfile({ customerId }: CustomerProfileProps) {
               Dedicated Virtual Account (NUBAN)
             </p>
             <p className="font-mono text-sm tracking-wide text-slate-300">
-              <span className="text-white font-semibold text-base tracking-normal">{customer.nuban}</span> · {clientName} {customer.name} / {bankName}
+              <span className="text-white font-semibold text-base tracking-normal">{customer.nuban}</span> · {customer.clientName} {customer.name} / {customer.bank}
             </p>
           </div>
           <div className="flex items-center gap-2 self-end sm:self-center">
@@ -176,7 +179,7 @@ export function CustomerProfile({ customerId }: CustomerProfileProps) {
           <p className="text-xs text-slate-400 mt-2.5 font-medium">Investment goal</p>
         </Card>
 
-        {/* Total Deposited (Amber progress theme) */}
+        {/* Total Deposited */}
         <Card className="bg-white border-slate-200/80 p-5 shadow-xs rounded-xl">
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Deposited</p>
           <p className="text-2xl font-bold text-amber-500 mt-2 font-mono tracking-tight">
@@ -198,22 +201,23 @@ export function CustomerProfile({ customerId }: CustomerProfileProps) {
         </Card>
       </div>
 
-      {/* Transaction History Data Sheet Component */}
+      {/* Transaction History Data Sheet */}
       <Card className="bg-white border-slate-200/80 shadow-xs rounded-xl overflow-hidden">
         <div className="p-5 border-b border-slate-100 flex items-center justify-between flex-wrap gap-4">
           <h3 className="font-bold text-slate-900 text-base">Transaction history</h3>
           
           <div className="flex items-center gap-2">
-            {/* Filter Dropdown select tool */}
+            {/* Native Dropdown Styled Picker */}
             <div className="relative">
               <select 
                 value={flagFilter}
                 onChange={(e) => setFlagFilter(e.target.value)}
-                className="appearance-none flex items-center justify-between border border-slate-200 rounded-lg pl-3 pr-8 py-1.5 text-xs font-medium bg-white text-slate-700 min-w-[110px] shadow-2xs cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-slate-300"
+                className="appearance-none flex items-center justify-between border border-slate-200 rounded-lg pl-3 pr-8 py-1.5 text-xs font-medium bg-white text-slate-700 min-w-[110px] shadow-2xs cursor-pointer focus:outline-hidden"
               >
                 <option value="all">All flags</option>
-                <option value="underpayment">Underpaid</option>
+                <option value="underpaid">Underpaid</option>
                 <option value="reversed">Reversed</option>
+                <option value="normal">Normal</option>
               </select>
               <ChevronDown className="h-3.5 w-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
@@ -229,7 +233,7 @@ export function CustomerProfile({ customerId }: CustomerProfileProps) {
           </div>
         </div>
 
-        {/* Dynamic Table Layout */}
+        {/* Data Table Area */}
         <div className="overflow-x-auto">
           <Table>
             <TableHeader className="bg-slate-50/70">
@@ -243,10 +247,12 @@ export function CustomerProfile({ customerId }: CustomerProfileProps) {
             </TableHeader>
             <TableBody>
               {filteredTransactions.length > 0 ? (
-                filteredTransactions.map((txn, index) => {
-                  const isReversed = txn.tags?.includes("Reversed") || txn.flag === "Reversed" || txn.amount === 0
+                filteredTransactions.map((txn) => {
+                  const displayFlag = getTransactionFlag(txn)
+                  const isReversed = displayFlag === "Reversed"
+                  
                   return (
-                    <TableRow key={index} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/40 transition-colors">
+                    <TableRow key={txn.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/40 transition-colors">
                       <TableCell className="px-5 py-4 text-sm text-slate-600 font-medium">{txn.date}</TableCell>
                       <TableCell className="px-5 py-4 text-xs text-slate-400 font-mono tracking-tight">{txn.reference}</TableCell>
                       <TableCell className="px-5 py-4 text-sm text-slate-600">{txn.description}</TableCell>
@@ -259,10 +265,15 @@ export function CustomerProfile({ customerId }: CustomerProfileProps) {
                             <span className="h-1.5 w-1.5 rounded-full bg-rose-500"></span>
                             Reversed
                           </span>
-                        ) : (
+                        ) : displayFlag === "Underpaid" ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-600 border border-amber-100">
                             <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
                             Underpaid
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-green-50 text-green-600 border border-green-100">
+                            <span className="h-1.5 w-1.5 rounded-full bg-green-500"></span>
+                            Normal
                           </span>
                         )}
                       </TableCell>
