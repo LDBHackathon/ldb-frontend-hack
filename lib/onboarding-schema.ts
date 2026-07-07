@@ -9,7 +9,7 @@ const baseSchema = z.object({
   addressLine: z.string().trim().min(2, "Street address is required"),
   city: z.string().trim().min(2, "City is required"),
   state: z.string().trim().min(2, "State is required"),
-  postalCode: z.string().trim().min(2, "Postal code is required"),
+  /* postalCode: z.string().trim().min(2, "Postal code is required"), */
   country: z.string().trim().min(2, "Country is required"),
   businessName: z.string().trim().min(2, "Business name is required"),
   registrationNumber: z.string().trim().min(2, "Registration number is required"),
@@ -61,7 +61,7 @@ export const addressSchema = baseSchema.pick({
   addressLine: true,
   city: true,
   state: true,
-  postalCode: true,
+  /* postalCode: true, */
   businessPhone: true,
   website: true,
   country: true,
@@ -72,7 +72,7 @@ export const businessSchema = baseSchema.pick({
   tradingName: true,
   businessType: true,
   taxId: true,
-  website: true,
+  /* website: true, */
   registrationNumber: true,
   industry: true,
 })

@@ -8,13 +8,15 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { addressSchema, type AddressFormValues } from "@/lib/onboarding-schema"
 import { useOnboardingStore } from "@/lib/onboarding-store"
+import { useSubmitAddressStep } from "@/hooks/use-onboarding-api"
 
 const emptyValues: AddressFormValues = {
   addressLine: "",
   city: "",
   state: "",
-  postalCode: "",
+  businessPhone: "",
   country: "",
+  website: "",
 }
 
 export function AddressForm() {
@@ -22,6 +24,7 @@ export function AddressForm() {
   const data = useOnboardingStore((state) => state.data.address)
   const hasHydrated = useOnboardingStore((state) => state.hasHydrated)
   const setStepData = useOnboardingStore((state) => state.setStepData)
+  const { submit, isSubmitting } = useSubmitAddressStep()
   const [values, setValues] = useState<AddressFormValues>(data ?? emptyValues)
   const [errors, setErrors] = useState<Partial<Record<keyof AddressFormValues, string>>>({})
 
@@ -32,8 +35,9 @@ export function AddressForm() {
     }
   }, [hasHydrated, router])
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    console.log(values)
 
     const result = addressSchema.safeParse(values)
     if (!result.success) {
@@ -46,6 +50,17 @@ export function AddressForm() {
     }
 
     setErrors({})
+
+    const ok = await submit({
+      address_line: result.data.addressLine,
+      city: result.data.city,
+      state: result.data.state,
+      country: result.data.country,
+      phone: result.data.businessPhone,
+      website: result.data.website,
+    })
+    if (!ok) return
+
     setStepData("address", result.data)
     router.push("/onboarding/verification")
   }
@@ -96,7 +111,23 @@ export function AddressForm() {
           {errors.addressLine ? <p className="text-sm text-rose-600">{errors.addressLine}</p> : null}
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="space-y-2">
+            <label htmlFor="city" className="text-sm font-medium text-(--color-slate)">
+              State
+            </label>
+            <Input
+              id="state"
+              value={values.state}
+              onChange={(event) => {
+                setValues((current) => ({ ...current, state: event.target.value }))
+                setErrors((current) => ({ ...current, state: undefined }))
+              }}
+              placeholder="Lagos"
+              className="h-12 rounded-md border-slate-200 bg-slate-50 px-4 text-base text-(--color-slate)"
+            />
+            {errors.city ? <p className="text-sm text-rose-600">{errors.city}</p> : null}
+          </div>
           <div className="space-y-2">
             <label htmlFor="city" className="text-sm font-medium text-(--color-slate)">
               City
@@ -114,7 +145,7 @@ export function AddressForm() {
             {errors.city ? <p className="text-sm text-rose-600">{errors.city}</p> : null}
           </div>
           <div className="space-y-2">
-            <label htmlFor="businessPhone" className="text-sm font-medium ttext-(--color-slate)">
+            <label htmlFor="businessPhone" className="text-sm font-medium text-(--color-slate)">
               Business phone
             </label>
             <Input
@@ -160,9 +191,10 @@ export function AddressForm() {
           </Button>
             <Button
                 type="submit"
-                className="flex h-12 w-40 items-center justify-center gap-2 rounded-md cursor-pointer bg-(--color-vault-teal) text-base font-semibold text-black hover:bg-(--color-vault-teal)"
+                disabled={isSubmitting}
+                className="flex h-12 w-40 items-center justify-center gap-2 rounded-md cursor-pointer bg-(--color-vault-teal) text-base font-semibold text-black hover:bg-(--color-vault-teal) disabled:opacity-70"
                 >
-                Continue
+                {isSubmitting ? "Saving..." : "Continue"}
                 <ArrowRight className="size-4" />
             </Button>   
         </div>

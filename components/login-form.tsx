@@ -1,45 +1,26 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { ArrowRight, Eye, EyeOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { toast } from "sonner"
-
-const DEFAULT_EMAIL = "ldb@gmail.com"
-const DEFAULT_PASSWORD = "12345678"
+import { useLogin } from "@/hooks/use-auth"
 
 export function LoginForm({ className, ...props }: React.ComponentProps<"form">) {
-  const router = useRouter()
+  const { login, isLoading, error: loginError } = useLogin()
   const [showPassword, setShowPassword] = useState(false)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError("")
-    setIsLoading(true)
-
-    // Simulate API call delay
-    await new Promise((resolve) => setTimeout(resolve, 500))
-
-    // Check if credentials match default credentials
-    if (email === DEFAULT_EMAIL && password === DEFAULT_PASSWORD) {
-      toast.success("Login successful! Redirecting...")
-      // Redirect to dashboard after successful login
-      setTimeout(() => {
-        router.push("/dashboard")
-      }, 1000)
-    } else {
-      setError("Invalid email or password. Try: ldb@gmail.com / 12345678")
-      toast.error("Invalid credentials")
+    const ok = await login({ email, password })
+    if (!ok) {
+      setError(loginError ?? "Invalid email or password")
     }
-
-    setIsLoading(false)
   }
 
   return (
@@ -135,11 +116,6 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"form">)
           <a href="/onboarding/account" className="font-semibold text-(--color-vault-teal)">
             Create a business account
           </a>
-        </p>
-        <p className="text-center text-sm text-slate-500">
-          Default Credentials:
-          Email: ldb@gmail.com
-        Password: 12345678
         </p>
       </form>
     </div>

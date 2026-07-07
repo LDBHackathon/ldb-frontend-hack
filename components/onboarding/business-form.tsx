@@ -8,13 +8,13 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { businessSchema, type BusinessFormValues } from "@/lib/onboarding-schema"
 import { useOnboardingStore } from "@/lib/onboarding-store"
+import { useSubmitBusinessStep } from "@/hooks/use-onboarding-api"
 
 const emptyValues: BusinessFormValues = {
   businessName: "",
   tradingName: "",
   businessType: "",
   taxId: "",
-  website: "",
   registrationNumber: "",
   industry: "",
 }
@@ -24,6 +24,7 @@ export function BusinessForm() {
   const data = useOnboardingStore((state) => state.data.business)
   const hasHydrated = useOnboardingStore((state) => state.hasHydrated)
   const setStepData = useOnboardingStore((state) => state.setStepData)
+  const { submit, isSubmitting } = useSubmitBusinessStep()
   const [values, setValues] = useState<BusinessFormValues>(data ?? emptyValues)
   const [errors, setErrors] = useState<Partial<Record<keyof BusinessFormValues, string>>>({})
 
@@ -34,7 +35,7 @@ export function BusinessForm() {
     }
   }, [hasHydrated, router])
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
     const result = businessSchema.safeParse(values)
@@ -48,6 +49,17 @@ export function BusinessForm() {
     }
 
     setErrors({})
+
+    const ok = await submit({
+      business_name: result.data.businessName,
+      registration_number: result.data.registrationNumber,
+      industry: result.data.industry,
+      trading_name: result.data.tradingName,
+      business_type: result.data.businessType,
+      tax_id: result.data.taxId,
+    })
+    if (!ok) return
+
     setStepData("business", result.data)
     router.push("/onboarding/address")
   }
@@ -178,9 +190,10 @@ export function BusinessForm() {
           </Button>
             <Button
                 type="submit"
-                className="flex h-12 w-40 items-center justify-center gap-2 rounded-md cursor-pointer bg-(--color-vault-teal) text-base font-semibold text-black hover:bg-(--color-vault-teal)"
+                disabled={isSubmitting}
+                className="flex h-12 w-40 items-center justify-center gap-2 rounded-md cursor-pointer bg-(--color-vault-teal) text-base font-semibold text-black hover:bg-(--color-vault-teal) disabled:opacity-70"
                 >
-                Continue
+                {isSubmitting ? "Saving..." : "Continue"}
                 <ArrowRight className="size-4" />
             </Button>   
         </div>

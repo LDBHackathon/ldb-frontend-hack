@@ -1,13 +1,15 @@
 "use client"
 
-import { ArrowLeft, ArrowRight } from "lucide-react"
+import { ArrowLeft, ArrowRight, Check, UploadCloud } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { verificationSchema, type VerificationFormValues } from "@/lib/onboarding-schema"
 import { useOnboardingStore } from "@/lib/onboarding-store"
+import { useSubmitVerificationStep } from "@/hooks/use-onboarding-api"
+import { useFileUpload } from "@/hooks/use-file-upload"
 
 const emptyValues: VerificationFormValues = {
   directorName: "",
@@ -23,8 +25,24 @@ export function VerificationForm() {
   const data = useOnboardingStore((state) => state.data.verification)
   const hasHydrated = useOnboardingStore((state) => state.hasHydrated)
   const setStepData = useOnboardingStore((state) => state.setStepData)
+  const { submit, isSubmitting } = useSubmitVerificationStep()
+  const { upload: uploadDocument, isUploading: isUploadingCac } = useFileUpload(
+    "/api/onboarding/documents"
+  )
+  const { upload: uploadAddressDoc, isUploading: isUploadingAddress } = useFileUpload(
+    "/api/onboarding/documents"
+  )
   const [values, setValues] = useState<VerificationFormValues>(data ?? emptyValues)
   const [errors, setErrors] = useState<Partial<Record<keyof VerificationFormValues, string>>>({})
+  const [cacFileName, setCacFileName] = useState("")
+  const [addressFileName, setAddressFileName] = useState("")
+  // URLs returned by the backend after upload - these are what actually get
+  // submitted as cac_document_url / address_proof_url.
+  const [cacDocumentUrl, setCacDocumentUrl] = useState("")
+  const [addressProofUrl, setAddressProofUrl] = useState("")
+
+  const cacInputRef = useRef<HTMLInputElement>(null)
+  const addressInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!hasHydrated) return
@@ -33,7 +51,32 @@ export function VerificationForm() {
     }
   }, [hasHydrated, router])
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleCacFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    setCacFileName(file.name)
+    const url = await uploadDocument(file, { document_type: "cac_certificate" })
+    if (url) {
+      setCacDocumentUrl(url)
+      setValues((current) => ({ ...current, cacDocument: url }))
+      setErrors((current) => ({ ...current, cacDocument: undefined }))
+    }
+    event.target.value = ""
+  }
+
+  const handleAddressFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    setAddressFileName(file.name)
+    const url = await uploadAddressDoc(file, { document_type: "proof_of_address" })
+    if (url) {
+      setAddressProofUrl(url)
+      setValues((current) => ({ ...current, addressProof: url }))
+    }
+    event.target.value = ""
+  }
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
     const result = verificationSchema.safeParse(values)
@@ -47,9 +90,18 @@ export function VerificationForm() {
     }
 
     setErrors({})
+
+    const ok = await submit({
+      director_name: result.data.directorName ?? "",
+      bvn: result.data.bvnId ?? "",
+      consent: result.data.consent,
+      notes: result.data.notes,
+      cac_document_url: cacDocumentUrl || undefined,
+      address_proof_url: addressProofUrl || undefined,
+    })
+    if (!ok) return
+
     setStepData("verification", result.data)
-    const onboardingData = useOnboardingStore.getState().data
-    console.log("Completed onboarding", onboardingData)
     router.push("/onboarding/review")
   }
 
@@ -102,20 +154,32 @@ export function VerificationForm() {
 
         <div className="space-y-2">
           <label className="text-sm font-medium text-(--color-slate)">CAC / incorporation certificate</label>
-          <div className="rounded-md border border-dashed border-slate-200 bg-white/50 p-4 text-sm text-slate-700 flex items-center justify-start gap-4">
-            <div className="h-8 w-8 rounded-md border border-slate-200 bg-slate-100 flex items-center justify-center text-slate-500">⬆</div>
-            <div>
-              <div className="font-medium">Click to upload</div>
-              <div className="text-xs text-slate-400">PDF, JPG or PNG · max 10MB</div>
+          <button
+            type="button"
+            onClick={() => cacInputRef.current?.click()}
+            className="w-full rounded-md border border-dashed border-slate-200 bg-white/50 p-4 text-sm text-slate-700 flex items-center justify-start gap-4 hover:bg-slate-50"
+          >
+            <div className="h-8 w-8 rounded-md border border-slate-200 bg-slate-100 flex items-center justify-center text-slate-500">
+              {cacDocumentUrl ? <Check className="size-4 text-emerald-600" /> : <UploadCloud className="size-4" />}
             </div>
-          </div>
-          <Input
+            <div className="text-left">
+              <div className="font-medium">
+                {isUploadingCac ? "Uploading…" : cacFileName || "Click to upload"}
+              </div>
+              <div className="text-xs text-slate-400">
+                {cacDocumentUrl ? "Uploaded" : "PDF, JPG or PNG · max 10MB"}
+              </div>
+            </div>
+          </button>
+          <input
+            ref={cacInputRef}
             id="cacDocument"
-            value={values.cacDocument}
-            onChange={(event) => setValues((current) => ({ ...current, cacDocument: event.target.value }))}
-            placeholder="CAC Certificate.jpg"
+            type="file"
+            accept=".pdf,.jpg,.jpeg,.png"
+            onChange={handleCacFileSelected}
             className="hidden"
           />
+          {errors.cacDocument ? <p className="text-sm text-rose-600">{errors.cacDocument}</p> : null}
         </div>
 
         <div className="space-y-2">
@@ -123,18 +187,29 @@ export function VerificationForm() {
             <label htmlFor="addressProof" className="text-sm font-medium text-(--color-slate)">Proof of business address</label>
             <span className="text-xs text-slate-400">Optional</span>
           </div>
-          <div className="rounded-md border border-dashed border-slate-200 bg-white/50 p-4 text-sm text-slate-700 flex items-center justify-start gap-4">
-            <div className="h-8 w-8 rounded-md border border-slate-200 bg-slate-100 flex items-center justify-center text-slate-500">⬆</div>
-            <div>
-              <div className="font-medium">Click to upload</div>
-              <div className="text-xs text-slate-400">PDF, JPG or PNG · max 10MB</div>
+          <button
+            type="button"
+            onClick={() => addressInputRef.current?.click()}
+            className="w-full rounded-md border border-dashed border-slate-200 bg-white/50 p-4 text-sm text-slate-700 flex items-center justify-start gap-4 hover:bg-slate-50"
+          >
+            <div className="h-8 w-8 rounded-md border border-slate-200 bg-slate-100 flex items-center justify-center text-slate-500">
+              {addressProofUrl ? <Check className="size-4 text-emerald-600" /> : <UploadCloud className="size-4" />}
             </div>
-          </div>
-          <Input
+            <div className="text-left">
+              <div className="font-medium">
+                {isUploadingAddress ? "Uploading…" : addressFileName || "Click to upload"}
+              </div>
+              <div className="text-xs text-slate-400">
+                {addressProofUrl ? "Uploaded" : "PDF, JPG or PNG · max 10MB"}
+              </div>
+            </div>
+          </button>
+          <input
+            ref={addressInputRef}
             id="addressProof"
-            value={values.addressProof}
-            onChange={(event) => setValues((current) => ({ ...current, addressProof: event.target.value }))}
-            placeholder="AddressProof.jpg"
+            type="file"
+            accept=".pdf,.jpg,.jpeg,.png"
+            onChange={handleAddressFileSelected}
             className="hidden"
           />
         </div>
@@ -182,9 +257,10 @@ export function VerificationForm() {
           </Button>
           <Button
             type="submit"
-            className="flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-(--color-vault-teal) text-base font-semibold text-white hover:bg-cyan-700"
+            disabled={isSubmitting || isUploadingCac || isUploadingAddress}
+            className="flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-(--color-vault-teal) text-base font-semibold text-white hover:bg-cyan-700 disabled:opacity-70"
           >
-            Review details
+            {isSubmitting ? "Saving..." : "Review details"}
             <ArrowRight className="size-4" />
           </Button>
         </div>

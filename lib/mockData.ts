@@ -6,6 +6,8 @@ export interface Transaction {
   amount: number
   bank: string
   tags: string[]
+  /** Optional, legacy defensive fallback used alongside `tags`. */
+  flag?: string
 }
 
 export interface TransactionData {
@@ -44,7 +46,7 @@ export const mockCustomers: Customer[] = [
     email: "adaeze.okonkwo@email.com",
     nuban: "0123 4567 89",
     bank: "GTBank",
-    clientName: "WealthVault",
+    clientName: "LDB Africa",
     dateJoined: "Jan 2025",
     avatar: "AO",
     status: "Underpayment",
@@ -79,7 +81,7 @@ export const mockCustomers: Customer[] = [
     email: "chidi.eze@email.com",
     nuban: "0987 654 321",
     bank: "GTBank",
-    clientName: "WealthVault",
+    clientName: "LDB Africa",
     dateJoined: "Jan 2025",
     avatar: "CE",
     status: "Normal",
@@ -105,7 +107,7 @@ export const mockCustomers: Customer[] = [
     email: "ngozi.uche@email.com",
     nuban: "0456 789 123",
     bank: "Access Bank",
-    clientName: "WealthVault",
+    clientName: "LDB Africa",
     dateJoined: "Feb 2025",
     avatar: "NU",
     status: "Misdirected",
@@ -131,7 +133,7 @@ export const mockCustomers: Customer[] = [
     email: "emeka.nwosu@email.com",
     nuban: "0321 654 987",
     bank: "GTBank",
-    clientName: "WealthVault",
+    clientName: "LDB Africa",
     dateJoined: "Jan 2025",
     avatar: "EN",
     status: "Underpayment",
@@ -157,7 +159,7 @@ export const mockCustomers: Customer[] = [
     email: "funmi.adesanya@email.com",
     nuban: "0654 321 098",
     bank: "Access Bank",
-    clientName: "WealthVault",
+    clientName: "LDB Africa",
     dateJoined: "Jan 2025",
     avatar: "FA",
     status: "Underpayment",

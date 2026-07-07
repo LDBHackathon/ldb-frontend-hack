@@ -21,10 +21,6 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import {
-  mockTransactions,
-  totalDeposits,
-  totalWithdrawals,
-  netPosition,
   filterTransactions,
 } from "@/lib/mockData"
 import type {
@@ -33,6 +29,7 @@ import type {
   TransactionStatusFilter,
 } from "@/lib/mockData"
 import { LiveTestBanner } from "./live-test-banner"
+import { useTransactions } from "@/hooks/use-dashboard-data"
 
 function formatCurrency(amount: number): string {
   if (amount >= 1000) {
@@ -175,6 +172,15 @@ function FilterDropdown({
 }
 
 export default function TransactionsList( ) {
+  const {
+    data: transactions,
+    isLoading,
+    error,
+    refetch,
+    totalDeposits,
+    totalWithdrawals,
+    netPosition,
+  } = useTransactions()
   const [searchQuery, setSearchQuery] = useState("")
   const [typeFilter, setTypeFilter] = useState<TransactionTypeFilter>("all")
   const [flagFilter, setFlagFilter] = useState<TransactionFlagFilter>("all")
@@ -184,13 +190,13 @@ export default function TransactionsList( ) {
   const filteredTransactions = useMemo(
     () =>
       filterTransactions(
-        mockTransactions,
+        transactions,
         searchQuery,
         typeFilter,
         flagFilter,
         statusFilter
       ),
-    [searchQuery, typeFilter, flagFilter, statusFilter]
+    [transactions, searchQuery, typeFilter, flagFilter, statusFilter]
   )
 
   const handleExportCSV = () => {
@@ -250,6 +256,15 @@ export default function TransactionsList( ) {
 
         {/* Live Testing Banner */}
         <LiveTestBanner />
+
+        {error && (
+          <div className="my-4 flex items-center justify-between rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            <span>{error}</span>
+            <Button variant="outline" size="sm" onClick={refetch}>
+              Retry
+            </Button>
+          </div>
+        )}
 
         {/* Metrics Cards */}
         <div className="grid grid-cols-3 gap-4 my-5">
@@ -379,7 +394,13 @@ export default function TransactionsList( ) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredTransactions.length === 0 ? (
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-16 text-[#94A3B8]">
+                    Loading transactions…
+                  </TableCell>
+                </TableRow>
+              ) : filteredTransactions.length === 0 ? (
                 <TableRow>
                   <TableCell
                     colSpan={7}

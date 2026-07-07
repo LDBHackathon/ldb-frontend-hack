@@ -103,7 +103,7 @@ export default function Page() {
           </h1>
 
           <p className="mx-auto mt-5 max-w-2xl text-balance text-[15px] leading-relaxed text-slate-400 md:text-lg">
-            WealthVault is the B2B platform that lets your business issue
+            LDB Africa is the B2B platform that lets your business issue
             dedicated virtual accounts (DVAs) to your own customers — with
             real-time reconciliation, signed webhooks, and edge-case handling
             built in. You own the customer relationship; we power the rails.
@@ -168,7 +168,7 @@ export default function Page() {
               <DemoPanel
                 label="Customer's DVA"
                 value="0123 4567 89"
-                caption="Issued via WealthVault"
+                caption="Issued via LDB Africa"
               />
               <FlowArrow />
               <DemoPanel
@@ -192,11 +192,11 @@ export default function Page() {
       </section>
 
       {/* ---------------------------------------------------------------- */}
-      {/* WHY BUSINESSES BUILD ON WEALTHVAULT                              */}
+      {/* WHY BUSINESSES BUILD ON LDB Africa                              */}
       {/* ---------------------------------------------------------------- */}
       <section className="mx-auto max-w-6xl px-5 pb-16 md:px-8 md:pb-24">
         <p className="mb-8 text-center font-mono text-xs font-medium uppercase tracking-widest text-teal-400 md:mb-10">
-          Why businesses build on WealthVault
+          Why businesses build on LDB Africa
         </p>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-6">
@@ -333,7 +333,7 @@ function CodeBlock() {
       <p className="mt-3">
         <span className="text-teal-400">POST</span>{" "}
         <span className="text-white">
-          https://api.wealthvault.io/v1/customers
+          https://api.LDBAfrica.io/v1/customers
         </span>
       </p>
       <pre className="mt-3 whitespace-pre-wrap text-white">

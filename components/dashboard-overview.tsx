@@ -15,57 +15,56 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { mockCustomers } from "@/lib/mockData"
+import { useCustomers, useDashboardSummary, useRecentTransactions } from "@/hooks/use-dashboard-data"
+import { MerchantStatusBanner } from "@/components/merchant-status-banner"
 
 export function DashboardOverview() {
-  // Calculate metrics
-  const totalCustomers = mockCustomers.length
-  const totalDeposits = mockCustomers.reduce(
-    (sum, customer) => sum + customer.totalDeposited,
-    0
-  )
-  const flaggedPayments = mockCustomers.filter(
-    (c) => c.status === "Underpayment" || c.status === "Misdirected"
-  ).length
-  const failedTransactions = mockCustomers.reduce((count, customer) => {
-    return (
-      count +
-      customer.transactions.filter((t) => t.tags.includes("Misdirected"))
-        .length
-    )
-  }, 0)
+  const {
+    data: customers,
+    isLoading: customersLoading,
+    error: customersError,
+    refetch: refetchCustomers,
+  } = useCustomers()
+  const { data: summary } = useDashboardSummary()
+  const { data: recentTransactions } = useRecentTransactions()
 
-  // Get recent transactions
-  const recentTransactions = mockCustomers
-    .flatMap((customer) =>
-      customer.transactions.map((txn) => ({
-        ...txn,
-        customerName: customer.name,
-        customerStatus: customer.status,
-      }))
-    )
-    .sort(
-      (a, b) =>
-        new Date(b.date).getTime() - new Date(a.date).getTime()
-    )
-    .slice(0, 6)
-
-  const getTransactionType = (description: string) => {
-    if (description.toLowerCase().includes("withdrawal")) {
-      return { label: "Withdrawal", icon: "↑", color: "text-orange-500" }
-    }
-    return { label: "Deposit", icon: "↓", color: "text-green-500" }
-  }
-
-  const getTransactionStatus = (tags: string[]) => {
-    if (tags.includes("Misdirected")) {
-      return { label: "Failed", color: "bg-red-100 text-red-700" }
-    }
-    return { label: "Successful", color: "bg-green-100 text-green-700" }
-  }
+  // Calculate metrics - prefer the backend's aggregated summary where
+  // available, falling back to a client-side calculation from the
+  // customer list so the cards still render if /portal/dashboard/summary
+  // isn't available.
+  const totalCustomers = summary?.total_customers ?? customers.length
+  const totalDeposits =
+    summary?.total_deposits !== undefined
+      ? Number(summary.total_deposits)
+      : customers.reduce((sum, customer) => sum + customer.totalDeposited, 0)
+  const flaggedPayments =
+    summary?.flagged_payments ??
+    customers.filter(
+      (c) => c.status === "Underpayment" || c.status === "Misdirected"
+    ).length
+  const failedTransactions =
+    summary?.failed_transactions ??
+    customers.reduce((count, customer) => {
+      return (
+        count +
+        customer.transactions.filter((t) => t.tags.includes("Misdirected"))
+          .length
+      )
+    }, 0)
 
   return (
     <div className="space-y-6">
+      <MerchantStatusBanner />
+
+      {customersError && (
+        <div className="flex items-center justify-between rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          <span>{customersError}</span>
+          <Button variant="outline" size="sm" onClick={refetchCustomers}>
+            Retry
+          </Button>
+        </div>
+      )}
+
       {/* Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Customers */}
@@ -184,19 +183,19 @@ export function DashboardOverview() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {recentTransactions.map((txn, idx) => {
-                    const txnType = getTransactionType(txn.description)
-                    const txnStatus = getTransactionStatus(txn.tags)
+                  {recentTransactions.slice(0, 6).map((txn, idx) => {
+                    const isWithdrawal = txn.type === "withdrawal"
+                    const isFailed = txn.status === "Failed"
                     return (
-                      <TableRow key={idx} className="hover:bg-slate-50 [&>td]:py-4">
+                      <TableRow key={txn.id ?? idx} className="hover:bg-slate-50 [&>td]:py-4">
                         <TableCell className="text-gray-700 font-medium">
                           {txn.customerName}
                         </TableCell>
                         <TableCell>
-                          <div className={`flex items-center gap-1 ${txnType.color}`}>
-                            <span className="text-sm">{txnType.icon}</span>
+                          <div className={`flex items-center gap-1 ${isWithdrawal ? "text-orange-500" : "text-green-500"}`}>
+                            <span className="text-sm">{isWithdrawal ? "↑" : "↓"}</span>
                             <span className="text-sm font-medium text-gray-700">
-                              {txnType.label}
+                              {isWithdrawal ? "Withdrawal" : "Deposit"}
                             </span>
                           </div>
                         </TableCell>
@@ -207,9 +206,9 @@ export function DashboardOverview() {
                         <TableCell>
                           <Badge
                             variant="outline"
-                            className={`${txnStatus.color} border-0`}
+                            className={`${isFailed ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"} border-0`}
                           >
-                            {txnStatus.label}
+                            {isFailed ? "Failed" : "Successful"}
                           </Badge>
                         </TableCell>
                       </TableRow>
@@ -235,7 +234,7 @@ export function DashboardOverview() {
             </Link>
           </div>
           <div className="divide-y divide-slate-200">
-            {mockCustomers.map((customer) => (
+            {customers.map((customer) => (
               <div key={customer.id} className="p-4 hover:bg-slate-50">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-sm font-medium text-slate-900">

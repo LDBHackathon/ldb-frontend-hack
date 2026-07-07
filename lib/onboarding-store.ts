@@ -33,7 +33,7 @@ export const useOnboardingStore = create<OnboardingStore>()(
             [step]: values,
           },
         })),
-      reset: () => set({ data: {}, hasHydrated: false }),
+      reset: () => set({ data: {} }),
     }),
     {
       name: "onboarding-store",

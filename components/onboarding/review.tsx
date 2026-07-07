@@ -1,10 +1,13 @@
 "use client"
 
 import Link from "next/link"
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { ShieldCheck, ArrowLeft } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { useOnboardingStore } from "@/lib/onboarding-store"
+import { useOnboardingStatus, useSubmitOnboarding } from "@/hooks/use-onboarding-api"
 
 function Field({ label, value }: { label: string; value?: string | null }) {
   return (
@@ -17,6 +20,24 @@ function Field({ label, value }: { label: string; value?: string | null }) {
 
 export default function ReviewPage() {
   const data = useOnboardingStore((state) => state.data)
+  const reset = useOnboardingStore((state) => state.reset)
+  const router = useRouter()
+  const { submit, isSubmitting } = useSubmitOnboarding()
+  const { status, load: loadStatus } = useOnboardingStatus()
+
+  useEffect(() => {
+    loadStatus()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const handleSubmit = async () => {
+    const ok = await submit()
+    if (!ok) return
+    // Onboarding is complete on the backend - the locally persisted draft
+    // (localStorage) is no longer needed from here on.
+    reset()
+    router.push("/onboarding/welcome")
+  }
 
   return (
     <div className="min-h-screen bg-slate-100 py-10">
@@ -25,6 +46,15 @@ export default function ReviewPage() {
           <ShieldCheck className="size-5 shrink-0 text-emerald-600" />
           <p className="text-sm">Review your details before submitting for KYB verification.</p>
         </div>
+
+        {status && (
+          <div className="rounded-md bg-white p-4 shadow-sm text-sm text-slate-600 flex flex-wrap gap-x-6 gap-y-1">
+            <span>Business: {status.business_completed ? "✓ complete" : "pending"}</span>
+            <span>Address: {status.address_completed ? "✓ complete" : "pending"}</span>
+            <span>Verification: {status.verification_completed ? "✓ complete" : "pending"}</span>
+            <span>Status: {status.kyb_status}</span>
+          </div>
+        )}
 
         <div className="rounded-md bg-white p-6 shadow-sm">
           <p className="mb-2 text-xs font-semibold uppercase tracking-[0.15em] text-emerald-600">Account</p>
@@ -89,11 +119,15 @@ export default function ReviewPage() {
               Back
             </Link>
           </Button>
-          <Button asChild className="rounded-md bg-emerald-500 px-5 py-6 text-white shadow-sm hover:bg-emerald-600">
-            <Link href="/onboarding/welcome" className="flex items-center gap-2">
+          <Button
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+            className="rounded-md bg-emerald-500 px-5 py-6 text-white shadow-sm hover:bg-emerald-600 disabled:opacity-70"
+          >
+            <span className="flex items-center gap-2">
               <ShieldCheck className="size-4" />
-              Submit for verification
-            </Link>
+              {isSubmitting ? "Submitting..." : "Submit for verification"}
+            </span>
           </Button>
         </div>
 

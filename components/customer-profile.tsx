@@ -2,7 +2,7 @@
 
 import React, { useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, Zap, Copy, Download, ChevronDown } from "lucide-react"
+import { ArrowLeft, Copy, Download, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import {
@@ -14,15 +14,38 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { toast } from "sonner"
-import { getCustomerById, type Transaction } from "@/lib/mockData"
+import { useCustomer } from "@/hooks/use-dashboard-data"
+import { SimulateTransfer } from "./simulate-transfer"
 
 interface CustomerProfileProps {
   customerId: string
 }
 
 export function CustomerProfile({ customerId }: CustomerProfileProps) {
-  const customer = getCustomerById(customerId)
+  const { data: customer, isLoading, error, refetch } = useCustomer(customerId)
   const [flagFilter, setFlagFilter] = useState("all")
+
+  if (isLoading) {
+    return (
+      <div className="w-full text-center py-12 text-slate-400">
+        Loading customer profile…
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="w-full text-center py-12 space-y-4">
+        <h2 className="text-xl font-bold text-slate-900">
+          Could not load this customer
+        </h2>
+        <p className="text-sm text-slate-500">{error}</p>
+        <Button variant="outline" onClick={refetch}>
+          Retry
+        </Button>
+      </div>
+    )
+  }
 
   if (!customer) {
     return (
@@ -37,13 +60,10 @@ export function CustomerProfile({ customerId }: CustomerProfileProps) {
     )
   }
 
-  // Safe helper to extract and normalize tags into the UI display flag strings
-  const getTransactionFlag = (txn: Transaction): string => {
-    const primaryTag = txn.tags && txn.tags.length > 0 ? txn.tags[0] : "Normal"
-    if (primaryTag === "Misdirected") return "Reversed"
-    if (primaryTag === "Underpayment") return "Underpaid"
-    return primaryTag
-  }
+  // Safe data normalized lookups across dynamic schemas
+  const dateJoined = customer.dateJoined || "Jan 2025"
+  const clientName = customer.clientName || "LDB Africa"
+  const bankName = customer.bank || "GTBank"
 
   const handleCopyNuban = () => {
     navigator.clipboard.writeText(customer.nuban)
@@ -53,13 +73,13 @@ export function CustomerProfile({ customerId }: CustomerProfileProps) {
   const handleExportStatement = () => {
     const txns = customer.transactions || []
     const csv = [
-      ["Date", "Reference", "Description", "Amount", "Flag"],
+      ["Date", "Reference", "Description", "Amount", "Flags"],
       ...txns.map((txn) => [
         txn.date,
         txn.reference,
         txn.description,
         txn.amount,
-        getTransactionFlag(txn),
+        txn.tags?.join("; ") || txn.flag || "",
       ]),
     ]
       .map((row) => row.join(","))
@@ -74,12 +94,12 @@ export function CustomerProfile({ customerId }: CustomerProfileProps) {
     window.URL.revokeObjectURL(url)
   }
 
-  // Filter nested customer transactions cleanly using the safe helper string
+  // Filter transactions based on selection dropdown array
   const rawTransactions = customer.transactions || []
   const filteredTransactions = rawTransactions.filter((txn) => {
     if (flagFilter === "all") return true
-    const transactionFlag = getTransactionFlag(txn).toLowerCase()
-    return transactionFlag === flagFilter.toLowerCase()
+    const currentFlags = txn.tags || [txn.flag]
+    return currentFlags.some((f) => f?.toLowerCase() === flagFilter.toLowerCase())
   })
 
   return (
@@ -109,10 +129,10 @@ export function CustomerProfile({ customerId }: CustomerProfileProps) {
             Live testing mode <span className="text-slate-400 font-normal">· Simulate an incoming bank transfer to test DVA reconciliation</span>
           </p>
         </div>
-        <Button className="bg-[#00BFA5] hover:bg-[#00A892] text-[#0B1E33] font-bold gap-2 h-9 px-4 rounded-lg shadow-sm transition-colors">
-          <Zap className="h-3.5 w-3.5 fill-current" />
-          Simulate transfer
-        </Button>
+        <SimulateTransfer
+          defaultAccountNumber={customer.nuban}
+          onSimulated={refetch}
+        />
       </div>
 
       {/* Customer Profile Identity Box */}
@@ -125,12 +145,12 @@ export function CustomerProfile({ customerId }: CustomerProfileProps) {
             <div>
               <h2 className="text-xl font-bold tracking-tight">{customer.name}</h2>
               <p className="text-sm text-slate-400 mt-0.5">
-                {customer.email} · Customer since {customer.dateJoined}
+                {customer.email} · Customer since {dateJoined}
               </p>
             </div>
           </div>
           
-          {/* Top Status Badge */}
+          {/* Status Badge */}
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20">
             <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
             {customer.status === "Underpayment" ? "Underpaid" : customer.status}
@@ -144,7 +164,7 @@ export function CustomerProfile({ customerId }: CustomerProfileProps) {
               Dedicated Virtual Account (NUBAN)
             </p>
             <p className="font-mono text-sm tracking-wide text-slate-300">
-              <span className="text-white font-semibold text-base tracking-normal">{customer.nuban}</span> · {customer.clientName} {customer.name} / {customer.bank}
+              <span className="text-white font-semibold text-base tracking-normal">{customer.nuban}</span> · {clientName} {customer.name} / {bankName}
             </p>
           </div>
           <div className="flex items-center gap-2 self-end sm:self-center">
@@ -179,7 +199,7 @@ export function CustomerProfile({ customerId }: CustomerProfileProps) {
           <p className="text-xs text-slate-400 mt-2.5 font-medium">Investment goal</p>
         </Card>
 
-        {/* Total Deposited */}
+        {/* Total Deposited (Amber progress theme) */}
         <Card className="bg-white border-slate-200/80 p-5 shadow-xs rounded-xl">
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Deposited</p>
           <p className="text-2xl font-bold text-amber-500 mt-2 font-mono tracking-tight">
@@ -201,23 +221,22 @@ export function CustomerProfile({ customerId }: CustomerProfileProps) {
         </Card>
       </div>
 
-      {/* Transaction History Data Sheet */}
+      {/* Transaction History Data Sheet Component */}
       <Card className="bg-white border-slate-200/80 shadow-xs rounded-xl overflow-hidden">
         <div className="p-5 border-b border-slate-100 flex items-center justify-between flex-wrap gap-4">
           <h3 className="font-bold text-slate-900 text-base">Transaction history</h3>
           
           <div className="flex items-center gap-2">
-            {/* Native Dropdown Styled Picker */}
+            {/* Filter Dropdown select tool */}
             <div className="relative">
               <select 
                 value={flagFilter}
                 onChange={(e) => setFlagFilter(e.target.value)}
-                className="appearance-none flex items-center justify-between border border-slate-200 rounded-lg pl-3 pr-8 py-1.5 text-xs font-medium bg-white text-slate-700 min-w-[110px] shadow-2xs cursor-pointer focus:outline-hidden"
+                className="appearance-none flex items-center justify-between border border-slate-200 rounded-lg pl-3 pr-8 py-1.5 text-xs font-medium bg-white text-slate-700 min-w-[110px] shadow-2xs cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-slate-300"
               >
                 <option value="all">All flags</option>
-                <option value="underpaid">Underpaid</option>
+                <option value="underpayment">Underpaid</option>
                 <option value="reversed">Reversed</option>
-                <option value="normal">Normal</option>
               </select>
               <ChevronDown className="h-3.5 w-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
@@ -233,7 +252,7 @@ export function CustomerProfile({ customerId }: CustomerProfileProps) {
           </div>
         </div>
 
-        {/* Data Table Area */}
+        {/* Dynamic Table Layout */}
         <div className="overflow-x-auto">
           <Table>
             <TableHeader className="bg-slate-50/70">
@@ -247,12 +266,10 @@ export function CustomerProfile({ customerId }: CustomerProfileProps) {
             </TableHeader>
             <TableBody>
               {filteredTransactions.length > 0 ? (
-                filteredTransactions.map((txn) => {
-                  const displayFlag = getTransactionFlag(txn)
-                  const isReversed = displayFlag === "Reversed"
-                  
+                filteredTransactions.map((txn, index) => {
+                  const isReversed = txn.tags?.includes("Reversed") || txn.flag === "Reversed" || txn.amount === 0
                   return (
-                    <TableRow key={txn.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/40 transition-colors">
+                    <TableRow key={index} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/40 transition-colors">
                       <TableCell className="px-5 py-4 text-sm text-slate-600 font-medium">{txn.date}</TableCell>
                       <TableCell className="px-5 py-4 text-xs text-slate-400 font-mono tracking-tight">{txn.reference}</TableCell>
                       <TableCell className="px-5 py-4 text-sm text-slate-600">{txn.description}</TableCell>
@@ -265,15 +282,10 @@ export function CustomerProfile({ customerId }: CustomerProfileProps) {
                             <span className="h-1.5 w-1.5 rounded-full bg-rose-500"></span>
                             Reversed
                           </span>
-                        ) : displayFlag === "Underpaid" ? (
+                        ) : (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-600 border border-amber-100">
                             <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
                             Underpaid
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-green-50 text-green-600 border border-green-100">
-                            <span className="h-1.5 w-1.5 rounded-full bg-green-500"></span>
-                            Normal
                           </span>
                         )}
                       </TableCell>

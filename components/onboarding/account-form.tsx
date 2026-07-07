@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { accountSchema, type AccountFormValues } from "@/lib/onboarding-schema"
 import { useOnboardingStore } from "@/lib/onboarding-store"
+import { useRegister } from "@/hooks/use-auth"
 
 const emptyValues: AccountFormValues = {
   fullName: "",
@@ -21,12 +22,13 @@ export function AccountForm() {
   const router = useRouter()
   const setStepData = useOnboardingStore((state) => state.setStepData)
   const data = useOnboardingStore((state) => state.data.account)
+  const { register, isLoading } = useRegister()
   const [values, setValues] = useState<AccountFormValues>(data ?? emptyValues)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [errors, setErrors] = useState<Partial<Record<keyof AccountFormValues, string>>>({})
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
     const result = accountSchema.safeParse(values)
@@ -41,6 +43,14 @@ export function AccountForm() {
     }
 
     setErrors({})
+
+    const { ok } = await register({
+      full_name: result.data.fullName,
+      email: result.data.email,
+      password: result.data.password,
+    })
+    if (!ok) return
+
     setStepData("account", result.data)
     router.push("/onboarding/business")
   }
@@ -157,10 +167,11 @@ export function AccountForm() {
         <div className="flex justify-end">
             <Button
                 type="submit"
-                className="flex h-12 w-40 items-center justify-center gap-2 rounded-md bg-(--color-vault-teal) text-base font-semibold text-black hover:bg-(--color-vault-teal)"
+                disabled={isLoading}
+                className="flex h-12 w-40 items-center justify-center gap-2 rounded-md bg-(--color-vault-teal) text-base font-semibold text-black hover:bg-(--color-vault-teal) disabled:opacity-70"
                 >
-                Continue
-                <ArrowRight className="size-4" />
+                {isLoading ? "Creating account..." : "Continue"}
+                {!isLoading && <ArrowRight className="size-4" />}
             </Button>    
         </div>
         <p className="text-center text-base text-slate-500">

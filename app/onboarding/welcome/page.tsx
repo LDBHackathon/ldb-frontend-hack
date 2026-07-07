@@ -68,7 +68,7 @@ export default function WelcomePage() {
                 <Check className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-slate-900">WealthVault is all set up</h3>
+                <h3 className="text-sm font-semibold text-slate-900">LDB Africa is all set up</h3>
                 <p className="mt-1 text-sm text-slate-600">Your KYB is under review — full live access unlocks within 24 hours. You can explore the dashboard in the meantime.</p>
               </div>
             </div>
