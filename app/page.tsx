@@ -39,7 +39,9 @@ export default function Page() {
 
           {/* Desktop nav */}
           <nav className="hidden md:block">
-            <span className="text-sm text-slate-400">API Documentation</span>
+            <Link href="/api-doc">
+                <span className="text-sm text-slate-400">API Documentation</span>
+            </Link>
           </nav>
 
           <div className="hidden items-center gap-3 md:flex">
