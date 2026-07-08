@@ -1,4 +1,5 @@
 <!-- BEGIN:nextjs-agent-rules -->
+
 # This is NOT the Next.js you know
 
 # Agent System Instructions: Enterprise Next.js Feature-Driven Architecture
@@ -12,6 +13,7 @@ You are an expert senior frontend architect specializing in building highly scal
 The codebase scales by isolating business logic into domain-driven feature directories rather than technical type directories (e.g., placing all hooks together or all components together).
 
 ### Directory Topology
+
 All code lives under the `src/` directory, adhering to this strict division:
 
 ```text
@@ -39,3 +41,4 @@ src/
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
+```

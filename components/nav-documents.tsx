@@ -1,37 +1,42 @@
 "use client"
 
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
-  SidebarGroup,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuAction,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  useSidebar,
+    SidebarGroup,
+    SidebarGroupLabel,
+    SidebarMenu,
+    SidebarMenuAction,
+    SidebarMenuButton,
+    SidebarMenuItem,
+    useSidebar,
 } from "@/components/ui/sidebar"
-import { MoreHorizontalIcon, FolderIcon, ShareIcon, Trash2Icon } from "lucide-react"
+import {
+    MoreHorizontalIcon,
+    FolderIcon,
+    ShareIcon,
+    Trash2Icon,
+} from "lucide-react"
 
 export function NavDocuments({
-  items,
+    items,
 }: {
-  items: {
-    name: string
-    url: string
-    icon: React.ReactNode
-  }[]
+    items: {
+        name: string
+        url: string
+        icon: React.ReactNode
+    }[]
 }) {
-  const { isMobile } = useSidebar()
+    const { isMobile } = useSidebar()
 
-  return (
-    <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-      {/* <SidebarGroupLabel>Documents</SidebarGroupLabel>
+    return (
+        <SidebarGroup className="group-data-[collapsible=icon]:hidden">
+            {/* <SidebarGroupLabel>Documents</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item) => (
           <SidebarMenuItem key={item.name}>
@@ -84,6 +89,6 @@ export function NavDocuments({
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu> */}
-    </SidebarGroup>
-  )
+        </SidebarGroup>
+    )
 }

@@ -4,142 +4,154 @@ import { useCallback, useEffect, useState } from "react"
 import { apiRequest, ClientApiError } from "@/lib/api/client"
 import { asArray } from "@/lib/api/normalize"
 import {
-  mapBackendCustomerToUI,
-  mapBackendTransactionToDetail,
-  mapBackendTransactionToRow,
+    mapBackendCustomerToUI,
+    mapBackendTransactionToDetail,
+    mapBackendTransactionToRow,
 } from "@/lib/types/mappers"
 import type { Customer, TransactionData } from "@/lib/mockData"
 import type {
-  BackendCustomer,
-  BackendTransaction,
-  DashboardSummary,
-  TransactionsSummary,
+    BackendCustomer,
+    BackendTransaction,
+    DashboardSummary,
+    TransactionsSummary,
 } from "@/lib/types/api"
 
 interface AsyncState<T> {
-  data: T
-  isLoading: boolean
-  error: string | null
+    data: T
+    isLoading: boolean
+    error: string | null
 }
 
 function useAsync<T>(
-  fetcher: () => Promise<T>,
-  initial: T,
-  deps: unknown[] = []
+    fetcher: () => Promise<T>,
+    initial: T,
+    deps: unknown[] = []
 ): AsyncState<T> & { refetch: () => void } {
-  const [state, setState] = useState<AsyncState<T>>({
-    data: initial,
-    isLoading: true,
-    error: null,
-  })
-  const [reloadKey, setReloadKey] = useState(0)
+    const [state, setState] = useState<AsyncState<T>>({
+        data: initial,
+        isLoading: true,
+        error: null,
+    })
+    const [reloadKey, setReloadKey] = useState(0)
 
-  useEffect(() => {
-    let cancelled = false
-    setState((s) => ({ ...s, isLoading: true, error: null }))
-    fetcher()
-      .then((data) => {
-        if (!cancelled) setState({ data, isLoading: false, error: null })
-      })
-      .catch((err) => {
-        if (cancelled) return
-        const message =
-          err instanceof ClientApiError ? err.message : "Failed to load data"
-        setState({ data: initial, isLoading: false, error: message })
-      })
-    return () => {
-      cancelled = true
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reloadKey, ...deps])
+    useEffect(() => {
+        let cancelled = false
+        setState((s) => ({ ...s, isLoading: true, error: null }))
+        fetcher()
+            .then((data) => {
+                if (!cancelled)
+                    setState({ data, isLoading: false, error: null })
+            })
+            .catch((err) => {
+                if (cancelled) return
+                const message =
+                    err instanceof ClientApiError
+                        ? err.message
+                        : "Failed to load data"
+                setState({ data: initial, isLoading: false, error: message })
+            })
+        return () => {
+            cancelled = true
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [reloadKey, ...deps])
 
-  return { ...state, refetch: () => setReloadKey((k) => k + 1) }
+    return { ...state, refetch: () => setReloadKey((k) => k + 1) }
 }
 
 /** Replaces `mockCustomers` from lib/mockData.ts with live /portal/customers data. */
 export function useCustomers() {
-  const fetcher = useCallback(async () => {
-    const payload = await apiRequest<unknown>("/api/portal/customers")
-    return asArray<BackendCustomer>(payload).map((c) => mapBackendCustomerToUI(c))
-  }, [])
-  return useAsync<Customer[]>(fetcher, [])
+    const fetcher = useCallback(async () => {
+        const payload = await apiRequest<unknown>("/api/portal/customers")
+        return asArray<BackendCustomer>(payload).map((c) =>
+            mapBackendCustomerToUI(c)
+        )
+    }, [])
+    return useAsync<Customer[]>(fetcher, [])
 }
 
 /** Replaces `getCustomerById` with a live lookup + statement fetch. */
 export function useCustomer(customerId: string) {
-  const fetcher = useCallback(async () => {
-    const [customer, statement] = await Promise.all([
-      apiRequest<BackendCustomer>(
-        `/api/portal/customers/${encodeURIComponent(customerId)}`
-      ),
-      apiRequest<unknown>(
-        `/api/portal/customers/${encodeURIComponent(customerId)}/statement`
-      ).catch(() => []),
-    ])
-    const transactions = asArray<BackendTransaction>(statement)
-    return mapBackendCustomerToUI(customer, transactions)
-  }, [customerId])
-  return useAsync<Customer | null>(fetcher, null, [customerId])
+    const fetcher = useCallback(async () => {
+        const [customer, statement] = await Promise.all([
+            apiRequest<BackendCustomer>(
+                `/api/portal/customers/${encodeURIComponent(customerId)}`
+            ),
+            apiRequest<unknown>(
+                `/api/portal/customers/${encodeURIComponent(customerId)}/statement`
+            ).catch(() => []),
+        ])
+        const transactions = asArray<BackendTransaction>(statement)
+        return mapBackendCustomerToUI(customer, transactions)
+    }, [customerId])
+    return useAsync<Customer | null>(fetcher, null, [customerId])
 }
 
 /** Replaces `mockTransactions` + the derived deposit/withdrawal/net totals. */
 export function useTransactions() {
-  const fetcher = useCallback(async () => {
-    const payload = await apiRequest<unknown>("/api/portal/transactions")
-    return asArray<BackendTransaction>(payload).map(mapBackendTransactionToRow)
-  }, [])
-  const state = useAsync<TransactionData[]>(fetcher, [])
+    const fetcher = useCallback(async () => {
+        const payload = await apiRequest<unknown>("/api/portal/transactions")
+        return asArray<BackendTransaction>(payload).map(
+            mapBackendTransactionToRow
+        )
+    }, [])
+    const state = useAsync<TransactionData[]>(fetcher, [])
 
-  const summaryFetcher = useCallback(
-    () => apiRequest<TransactionsSummary>("/api/portal/transactions/summary"),
-    []
-  )
-  const summary = useAsync<TransactionsSummary | null>(summaryFetcher, null)
+    const summaryFetcher = useCallback(
+        () =>
+            apiRequest<TransactionsSummary>("/api/portal/transactions/summary"),
+        []
+    )
+    const summary = useAsync<TransactionsSummary | null>(summaryFetcher, null)
 
-  const clientDeposits = state.data
-    .filter((t) => t.type === "deposit" && t.status === "Success")
-    .reduce((sum, t) => sum + t.amount, 0)
-  const clientWithdrawals = state.data
-    .filter((t) => t.type === "withdrawal" && t.status === "Success")
-    .reduce((sum, t) => sum + t.amount, 0)
+    const clientDeposits = state.data
+        .filter((t) => t.type === "deposit" && t.status === "Success")
+        .reduce((sum, t) => sum + t.amount, 0)
+    const clientWithdrawals = state.data
+        .filter((t) => t.type === "withdrawal" && t.status === "Success")
+        .reduce((sum, t) => sum + t.amount, 0)
 
-  const totalDeposits =
-    summary.data?.total_deposits !== undefined
-      ? Number(summary.data.total_deposits)
-      : clientDeposits
-  const totalWithdrawals =
-    summary.data?.total_withdrawals !== undefined
-      ? Number(summary.data.total_withdrawals)
-      : clientWithdrawals
-  const netPosition =
-    summary.data?.net_position !== undefined
-      ? Number(summary.data.net_position)
-      : totalDeposits - totalWithdrawals
+    const totalDeposits =
+        summary.data?.total_deposits !== undefined
+            ? Number(summary.data.total_deposits)
+            : clientDeposits
+    const totalWithdrawals =
+        summary.data?.total_withdrawals !== undefined
+            ? Number(summary.data.total_withdrawals)
+            : clientWithdrawals
+    const netPosition =
+        summary.data?.net_position !== undefined
+            ? Number(summary.data.net_position)
+            : totalDeposits - totalWithdrawals
 
-  return {
-    ...state,
-    totalDeposits,
-    totalWithdrawals,
-    netPosition,
-  }
+    return {
+        ...state,
+        totalDeposits,
+        totalWithdrawals,
+        netPosition,
+    }
 }
 
 /** GET /portal/transactions/recent - used for the dashboard's recent-activity list. */
 export function useRecentTransactions() {
-  const fetcher = useCallback(async () => {
-    const payload = await apiRequest<unknown>("/api/portal/transactions/recent")
-    return asArray<BackendTransaction>(payload).map(mapBackendTransactionToRow)
-  }, [])
-  return useAsync<TransactionData[]>(fetcher, [])
+    const fetcher = useCallback(async () => {
+        const payload = await apiRequest<unknown>(
+            "/api/portal/transactions/recent"
+        )
+        return asArray<BackendTransaction>(payload).map(
+            mapBackendTransactionToRow
+        )
+    }, [])
+    return useAsync<TransactionData[]>(fetcher, [])
 }
 
 /** Replaces the hand-computed metrics in DashboardOverview with /portal/dashboard/summary. */
 export function useDashboardSummary() {
-  const fetcher = useCallback(
-    () => apiRequest<DashboardSummary>("/api/portal/dashboard/summary"),
-    []
-  )
-  return useAsync<DashboardSummary | null>(fetcher, null)
+    const fetcher = useCallback(
+        () => apiRequest<DashboardSummary>("/api/portal/dashboard/summary"),
+        []
+    )
+    return useAsync<DashboardSummary | null>(fetcher, null)
 }
 
 export { mapBackendTransactionToDetail }
