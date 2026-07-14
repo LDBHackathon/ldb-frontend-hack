@@ -46,19 +46,10 @@ export function DashboardOverview() {
               )
     const flaggedPayments =
         summary?.flagged_payments ??
-        customers.filter(
-            (c) => c.status === "Underpayment" || c.status === "Misdirected"
-        ).length
-    const failedTransactions =
-        summary?.failed_transactions ??
-        customers.reduce((count, customer) => {
-            return (
-                count +
-                customer.transactions.filter((t) =>
-                    t.tags.includes("Misdirected")
-                ).length
-            )
-        }, 0)
+        customers.filter((c) => c.status === "suspended").length
+    const misdirectedTransactions = recentTransactions.filter(
+        (t) => t.flag === "Misdirected"
+    ).length
 
     return (
         <div className="space-y-6">
@@ -144,10 +135,10 @@ export function DashboardOverview() {
                     <div className="flex items-start justify-between">
                         <div>
                             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                                Failed Transactions
+                                Misdirected Transactions
                             </p>
                             <p className="text-3xl font-bold text-slate-900 mt-2">
-                                {failedTransactions}
+                                {misdirectedTransactions}
                             </p>
                             <p className="text-sm text-slate-600 mt-2">
                                 Needs review
@@ -198,10 +189,9 @@ export function DashboardOverview() {
                                     {recentTransactions
                                         .slice(0, 6)
                                         .map((txn, idx) => {
-                                            const isWithdrawal =
-                                                txn.type === "withdrawal"
-                                            const isFailed =
-                                                txn.status === "Failed"
+                                            const isProblem =
+                                                txn.flag === "Misdirected" ||
+                                                txn.flag === "Partial"
                                             return (
                                                 <TableRow
                                                     key={txn.id ?? idx}
@@ -211,36 +201,25 @@ export function DashboardOverview() {
                                                         {txn.customerName}
                                                     </TableCell>
                                                     <TableCell>
-                                                        <div
-                                                            className={`flex items-center gap-1 ${isWithdrawal ? "text-orange-500" : "text-green-500"}`}
-                                                        >
+                                                        <div className="flex items-center gap-1 text-green-500">
                                                             <span className="text-sm">
-                                                                {isWithdrawal
-                                                                    ? "↑"
-                                                                    : "↓"}
+                                                                ↓
                                                             </span>
                                                             <span className="text-sm font-medium text-gray-700">
-                                                                {isWithdrawal
-                                                                    ? "Withdrawal"
-                                                                    : "Deposit"}
+                                                                Deposit
                                                             </span>
                                                         </div>
                                                     </TableCell>
                                                     <TableCell className="text-slate-900 font-semibold">
-                                                        {txn.amount >= 0
-                                                            ? "+"
-                                                            : ""}
-                                                        ₦
+                                                        +₦
                                                         {txn.amount.toLocaleString()}
                                                     </TableCell>
                                                     <TableCell>
                                                         <Badge
                                                             variant="outline"
-                                                            className={`${isFailed ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"} border-0`}
+                                                            className={`${isProblem ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"} border-0`}
                                                         >
-                                                            {isFailed
-                                                                ? "Failed"
-                                                                : "Successful"}
+                                                            {txn.flag}
                                                         </Badge>
                                                     </TableCell>
                                                 </TableRow>

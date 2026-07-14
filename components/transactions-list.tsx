@@ -6,9 +6,7 @@ import {
     Search,
     ChevronDown,
     ArrowDownLeft,
-    ArrowUpRight,
     Wallet,
-    Zap,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -21,11 +19,7 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { filterTransactions } from "@/lib/mockData"
-import type {
-    TransactionTypeFilter,
-    TransactionFlagFilter,
-    TransactionStatusFilter,
-} from "@/lib/mockData"
+import type { TransactionTypeFilter, TransactionFlagFilter } from "@/lib/mockData"
 import { LiveTestBanner } from "./live-test-banner"
 import { useTransactions } from "@/hooks/use-dashboard-data"
 
@@ -40,33 +34,17 @@ function formatAmount(amount: number): string {
     return `₦${amount.toLocaleString()}`
 }
 
-// Status badge component
-function StatusBadge({ status }: { status: "Success" | "Failed" }) {
-    if (status === "Success") {
-        return (
-            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-[#DCFCE7] text-[#15803D]">
-                <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#22C55E] opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-[#22C55E]"></span>
-                </span>
-                Success
-            </span>
-        )
-    }
-    return (
-        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-[#FEE2E2] text-[#B91C1C]">
-            <span className="h-2 w-2 rounded-full bg-[#EF4444]"></span>
-            Failed
-        </span>
-    )
-}
-
-// Flag badge component
-function FlagBadge({ flag }: { flag: "Normal" | "Underpaid" | "Overpaid" }) {
+// Flag badge component - reconciliation outcome from TransactionResponse.status
+function FlagBadge({
+    flag,
+}: {
+    flag: "Full" | "Partial" | "Overpayment" | "Misdirected"
+}) {
     const styles = {
-        Normal: "bg-[#F1F5F9] text-[#64748B]",
-        Underpaid: "bg-[#FEF3C7] text-[#B45309]",
-        Overpaid: "bg-[#FEE2E2] text-[#B91C1C]",
+        Full: "bg-[#DCFCE7] text-[#15803D]",
+        Partial: "bg-[#FEF3C7] text-[#B45309]",
+        Overpayment: "bg-[#DBEAFE] text-[#1D4ED8]",
+        Misdirected: "bg-[#FEE2E2] text-[#B91C1C]",
     }
     return (
         <span
@@ -77,39 +55,21 @@ function FlagBadge({ flag }: { flag: "Normal" | "Underpaid" | "Overpaid" }) {
     )
 }
 
-// Type cell component
-function TypeCell({ type }: { type: "deposit" | "withdrawal" }) {
-    if (type === "deposit") {
-        return (
-            <span className="inline-flex items-center gap-2 text-sm text-[#0F172A]">
-                <ArrowDownLeft className="h-4 w-4 text-[#14B8A6]" />
-                Deposit
-            </span>
-        )
-    }
+// Type cell component - this backend only ever records inbound transfers
+function TypeCell() {
     return (
         <span className="inline-flex items-center gap-2 text-sm text-[#0F172A]">
-            <ArrowUpRight className="h-4 w-4 text-[#F97316]" />
-            Withdrawal
+            <ArrowDownLeft className="h-4 w-4 text-[#14B8A6]" />
+            Deposit
         </span>
     )
 }
 
 // Amount cell component
-function AmountCell({
-    type,
-    amount,
-}: {
-    type: "deposit" | "withdrawal"
-    amount: number
-}) {
-    const isDeposit = type === "deposit"
+function AmountCell({ amount }: { amount: number }) {
     return (
-        <span
-            className={`text-sm font-semibold tabular-nums ${isDeposit ? "text-[#14B8A6]" : "text-[#F97316]"}`}
-        >
-            {isDeposit ? "+" : "-"}
-            {formatAmount(amount)}
+        <span className="text-sm font-semibold tabular-nums text-[#14B8A6]">
+            +{formatAmount(amount)}
         </span>
     )
 }
@@ -176,25 +136,15 @@ export default function TransactionsList() {
         error,
         refetch,
         totalDeposits,
-        totalWithdrawals,
-        netPosition,
     } = useTransactions()
     const [searchQuery, setSearchQuery] = useState("")
     const [typeFilter, setTypeFilter] = useState<TransactionTypeFilter>("all")
     const [flagFilter, setFlagFilter] = useState<TransactionFlagFilter>("all")
-    const [statusFilter, setStatusFilter] =
-        useState<TransactionStatusFilter>("all")
 
     const filteredTransactions = useMemo(
         () =>
-            filterTransactions(
-                transactions,
-                searchQuery,
-                typeFilter,
-                flagFilter,
-                statusFilter
-            ),
-        [transactions, searchQuery, typeFilter, flagFilter, statusFilter]
+            filterTransactions(transactions, searchQuery, typeFilter, flagFilter),
+        [transactions, searchQuery, typeFilter, flagFilter]
     )
 
     const handleExportCSV = () => {
@@ -205,8 +155,7 @@ export default function TransactionsList() {
             "Date",
             "Type",
             "Amount",
-            "Flags",
-            "Status",
+            "Outcome",
         ]
         const rows = filteredTransactions.map((t) => [
             t.customerName,
@@ -216,7 +165,6 @@ export default function TransactionsList() {
             t.type,
             t.amount.toString(),
             t.flag,
-            t.status,
         ])
         const csv = [headers, ...rows].map((row) => row.join(",")).join("\n")
         const blob = new Blob([csv], { type: "text/csv" })
@@ -237,7 +185,7 @@ export default function TransactionsList() {
                         Transactions
                     </h1>
                     <p className="text-sm text-[#64748B] mt-1">
-                        Deposits and withdrawals across your customers&apos;
+                        Inbound transfers into your customers&apos; dedicated
                         virtual accounts
                     </p>
                 </div>
@@ -263,43 +211,9 @@ export default function TransactionsList() {
                     </div>
                 )}
 
-                {/* Metrics Cards */}
-                <div className="grid grid-cols-3 gap-4 my-5">
-                    {/* Total Deposits */}
-                    <div className="bg-white border border-[#E2E8F0] rounded-lg p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-                        <div className="flex items-start gap-4">
-                            <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-[#CCFBF1] shrink-0">
-                                <ArrowDownLeft className="h-5 w-5 text-[#14B8A6]" />
-                            </div>
-                            <div>
-                                <p className="text-xs text-[#94A3B8] uppercase tracking-wider font-normal mb-1">
-                                    Total Deposits
-                                </p>
-                                <p className="text-2xl font-bold text-[#0F172A] tracking-tight tabular-nums">
-                                    {formatCurrency(totalDeposits)}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Total Withdrawals */}
-                    <div className="bg-white border border-[#E2E8F0] rounded-lg p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-                        <div className="flex items-start gap-4">
-                            <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-[#FFEDD5] shrink-0">
-                                <ArrowUpRight className="h-5 w-5 text-[#F97316]" />
-                            </div>
-                            <div>
-                                <p className="text-xs text-[#94A3B8] uppercase tracking-wider font-normal mb-1">
-                                    Total Withdrawals
-                                </p>
-                                <p className="text-2xl font-bold text-[#0F172A] tracking-tight tabular-nums">
-                                    {formatCurrency(totalWithdrawals)}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Net Position */}
+                {/* Metrics Cards - this backend only tracks inbound transfers,
+                    there is no withdrawal concept, so only one real metric. */}
+                <div className="grid grid-cols-1 max-w-sm my-5">
                     <div className="bg-white border border-[#E2E8F0] rounded-lg p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
                         <div className="flex items-start gap-4">
                             <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-[#CCFBF1] shrink-0">
@@ -307,10 +221,10 @@ export default function TransactionsList() {
                             </div>
                             <div>
                                 <p className="text-xs text-[#94A3B8] uppercase tracking-wider font-normal mb-1">
-                                    Net Position
+                                    Total Received
                                 </p>
                                 <p className="text-2xl font-bold text-[#0F172A] tracking-tight tabular-nums">
-                                    {formatCurrency(netPosition)}
+                                    {formatCurrency(totalDeposits)}
                                 </p>
                             </div>
                         </div>
@@ -330,41 +244,16 @@ export default function TransactionsList() {
                         />
                     </div>
                     <FilterDropdown
-                        label="All types"
-                        value={typeFilter}
-                        options={[
-                            { label: "All types", value: "all" },
-                            { label: "Deposit", value: "deposit" },
-                            { label: "Withdrawal", value: "withdrawal" },
-                        ]}
-                        onChange={(v) =>
-                            setTypeFilter(v as TransactionTypeFilter)
-                        }
-                    />
-                    <FilterDropdown
-                        label="All flags"
+                        label="All outcomes"
                         value={flagFilter}
                         options={[
-                            { label: "All flags", value: "all" },
-                            { label: "Normal", value: "Normal" },
-                            { label: "Underpaid", value: "Underpaid" },
-                            { label: "Overpaid", value: "Overpaid" },
+                            { label: "All outcomes", value: "all" },
+                            { label: "Full", value: "Full" },
+                            { label: "Partial", value: "Partial" },
+                            { label: "Overpayment", value: "Overpayment" },
+                            { label: "Misdirected", value: "Misdirected" },
                         ]}
-                        onChange={(v) =>
-                            setFlagFilter(v as TransactionFlagFilter)
-                        }
-                    />
-                    <FilterDropdown
-                        label="All statuses"
-                        value={statusFilter}
-                        options={[
-                            { label: "All statuses", value: "all" },
-                            { label: "Success", value: "Success" },
-                            { label: "Failed", value: "Failed" },
-                        ]}
-                        onChange={(v) =>
-                            setStatusFilter(v as TransactionStatusFilter)
-                        }
+                        onChange={(v) => setFlagFilter(v as TransactionFlagFilter)}
                     />
                 </div>
 
@@ -389,10 +278,7 @@ export default function TransactionsList() {
                                     Amount
                                 </TableHead>
                                 <TableHead className="text-[11px] font-medium text-[#94A3B8] uppercase tracking-wider px-4">
-                                    Flags
-                                </TableHead>
-                                <TableHead className="text-[11px] font-medium text-[#94A3B8] uppercase tracking-wider px-4">
-                                    Status
+                                    Outcome
                                 </TableHead>
                             </TableRow>
                         </TableHeader>
@@ -400,7 +286,7 @@ export default function TransactionsList() {
                             {isLoading ? (
                                 <TableRow>
                                     <TableCell
-                                        colSpan={7}
+                                        colSpan={6}
                                         className="text-center py-16 text-[#94A3B8]"
                                     >
                                         Loading transactions…
@@ -409,7 +295,7 @@ export default function TransactionsList() {
                             ) : filteredTransactions.length === 0 ? (
                                 <TableRow>
                                     <TableCell
-                                        colSpan={7}
+                                        colSpan={6}
                                         className="text-center py-16 text-[#94A3B8]"
                                     >
                                         No transactions found matching your
@@ -443,19 +329,13 @@ export default function TransactionsList() {
                                             </span>
                                         </TableCell>
                                         <TableCell className="px-4">
-                                            <TypeCell type={txn.type} />
+                                            <TypeCell />
                                         </TableCell>
                                         <TableCell className="px-4">
-                                            <AmountCell
-                                                type={txn.type}
-                                                amount={txn.amount}
-                                            />
+                                            <AmountCell amount={txn.amount} />
                                         </TableCell>
                                         <TableCell className="px-4">
                                             <FlagBadge flag={txn.flag} />
-                                        </TableCell>
-                                        <TableCell className="px-4">
-                                            <StatusBadge status={txn.status} />
                                         </TableCell>
                                     </TableRow>
                                 ))

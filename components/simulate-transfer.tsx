@@ -46,7 +46,9 @@ export function SimulateTransfer({
     const [open, setOpen] = useState(false)
     const [accountNumber, setAccountNumber] = useState(defaultAccountNumber)
     const [amount, setAmount] = useState("60000")
-    const [senderBank, setSenderBank] = useState<string>("")
+    const [senderName, setSenderName] = useState("Demo Sender")
+    const [senderBank, setSenderBank] = useState<string>("gtbank")
+    const [misdirected, setMisdirected] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
 
     const handleOpenChange = (next: boolean) => {
@@ -57,6 +59,10 @@ export function SimulateTransfer({
     const handleSend = async () => {
         if (!accountNumber.trim()) {
             toast.error("Enter a destination account number")
+            return
+        }
+        if (accountNumber.trim().length > 20) {
+            toast.error("Account number must be 20 characters or fewer")
             return
         }
         if (!amount || Number(amount) <= 0) {
@@ -71,13 +77,22 @@ export function SimulateTransfer({
                 body: {
                     account_number: accountNumber.trim(),
                     amount,
-                    sender_name: senderBank
+                    // Confirmed from SimulateFundingRequestSchema: these are
+                    // two separate fields (sender's name and sender's bank),
+                    // not one combined field.
+                    sender_name: senderName.trim() || "Demo Sender",
+                    sender_bank: senderBank
                         ? SENDER_BANKS[senderBank]
-                        : undefined,
+                        : "GTBank",
+                    // Real, dedicated flag for testing the misdirected-
+                    // payment flow - no need to fake it with a bad NUBAN.
+                    misdirected,
                 },
             })
             toast.success(
-                "Transfer simulated — wallet should reconcile shortly"
+                misdirected
+                    ? "Misdirected transfer simulated"
+                    : "Transfer simulated — wallet should reconcile shortly"
             )
             setOpen(false)
             onSimulated?.()
@@ -129,6 +144,7 @@ export function SimulateTransfer({
                             placeholder="Please input account number"
                             value={accountNumber}
                             onChange={(e) => setAccountNumber(e.target.value)}
+                            maxLength={20}
                         />
                     </div>
 
@@ -167,10 +183,34 @@ export function SimulateTransfer({
                         </div>
                     </div>
 
+                    <div className="mt-4">
+                        <Label className="mb-2">Sender name</Label>
+                        <Input
+                            className="h-12 rounded-lg border border-slate-200"
+                            value={senderName}
+                            onChange={(e) => setSenderName(e.target.value)}
+                            placeholder="Demo Sender"
+                        />
+                    </div>
+
+                    <label className="mt-4 flex items-center gap-3 rounded-md border border-slate-200 bg-white p-4 text-sm text-slate-700">
+                        <input
+                            type="checkbox"
+                            checked={misdirected}
+                            onChange={(e) => setMisdirected(e.target.checked)}
+                            className="h-4 w-4 rounded border-slate-300 text-cyan-600 focus:ring-cyan-500"
+                        />
+                        <span>
+                            Simulate as a{" "}
+                            <strong>misdirected payment</strong> (tests the
+                            reconciliation-failure flow instead of a normal
+                            deposit)
+                        </span>
+                    </label>
+
                     <div className="mt-4 rounded-md border border-slate-200 bg-white p-4 text-sm text-slate-700">
                         This hits the sandbox endpoint — no real bank transfer
-                        is made. Use an invalid NUBAN to test the
-                        misdirected-payment flow.
+                        is made.
                     </div>
 
                     <div className="mt-6 grid grid-cols-2 gap-4 rounded-md border border-slate-200 bg-white p-4">
@@ -184,10 +224,16 @@ export function SimulateTransfer({
                         </div>
                         <div className="text-center">
                             <div className="text-xs text-slate-500">
-                                WALLET CREDITED
+                                {misdirected
+                                    ? "EXPECTED OUTCOME"
+                                    : "WALLET CREDITED"}
                             </div>
-                            <div className="mt-2 font-semibold text-teal-500">
-                                ₦{Number(amount || 0).toLocaleString()}
+                            <div
+                                className={`mt-2 font-semibold ${misdirected ? "text-rose-500" : "text-teal-500"}`}
+                            >
+                                {misdirected
+                                    ? "Misdirected"
+                                    : `₦${Number(amount || 0).toLocaleString()}`}
                             </div>
                         </div>
                     </div>

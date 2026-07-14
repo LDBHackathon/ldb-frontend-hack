@@ -16,31 +16,33 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { LiveTestBanner } from "./live-test-banner"
+import { CreateCustomerSheet } from "./create-customer-sheet"
 import { useCustomers } from "@/hooks/use-dashboard-data"
+import type { Customer } from "@/lib/mockData"
 
-const getStatusColor = (status: string) => {
+const getStatusColor = (status: Customer["status"]) => {
     switch (status) {
-        case "Underpayment":
-            return "bg-orange-100 text-orange-700"
-        case "Normal":
+        case "active":
             return "bg-green-100 text-green-700"
-        case "Misdirected":
+        case "pending_nomba":
+            return "bg-orange-100 text-orange-700"
+        case "suspended":
             return "bg-red-100 text-red-700"
         default:
             return "bg-gray-100 text-gray-700"
     }
 }
 
-const getStatusTextColor = (status: string) => {
+const getStatusLabel = (status: Customer["status"]) => {
     switch (status) {
-        case "Underpayment":
-            return "text-orange-500"
-        case "Normal":
-            return "text-green-500"
-        case "Misdirected":
-            return "text-red-500"
+        case "active":
+            return "Active"
+        case "pending_nomba":
+            return "Setting up"
+        case "suspended":
+            return "Suspended"
         default:
-            return "text-gray-500"
+            return status
     }
 }
 
@@ -102,15 +104,18 @@ export function CustomersList() {
                             : `${customers.length} dedicated virtual accounts`}
                     </p>
                 </div>
-                <Button
-                    onClick={handleExport}
-                    variant="outline"
-                    className="gap-2"
-                    disabled={isLoading || customers.length === 0}
-                >
-                    <Download className="h-4 w-4" />
-                    Export
-                </Button>
+                <div className="flex items-center gap-3">
+                    <Button
+                        onClick={handleExport}
+                        variant="outline"
+                        className="gap-2"
+                        disabled={isLoading || customers.length === 0}
+                    >
+                        <Download className="h-4 w-4" />
+                        Export
+                    </Button>
+                    <CreateCustomerSheet onCreated={refetch} />
+                </div>
             </div>
             <div className="max-w-7xl mx-auto px-6">
                 {/* Live Testing Banner */}
@@ -193,10 +198,10 @@ export function CustomersList() {
                                                     <div
                                                         className={`h-10 w-10 rounded-full ${
                                                             customer.status ===
-                                                            "Normal"
+                                                            "active"
                                                                 ? "bg-emerald-400"
                                                                 : customer.status ===
-                                                                    "Underpayment"
+                                                                    "pending_nomba"
                                                                   ? "bg-orange-400"
                                                                   : "bg-red-400"
                                                         } flex items-center justify-center text-sm font-semibold text-white`}
@@ -252,7 +257,7 @@ export function CustomersList() {
                                                         customer.status
                                                     )} border-0`}
                                                 >
-                                                    {customer.status}
+                                                    {getStatusLabel(customer.status)}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="text-right">

@@ -78,11 +78,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
-    // Safely mapping the custom fields from the dynamic merchant payload
+    // Safely mapping fields from the profile payload - confirmed real
+    // fields are just `name` and `phone` (UpdateProfileSettingsRequestSchema).
     const merchantUser = {
-        name: profile?.full_name ?? profile?.name ?? "Loading...",
-        businessName: profile?.business_name ?? "Business Account", // Swapping email for business name
-        avatar: profile?.avatar_url,
+        name: profile?.name ?? "Loading...",
     }
 
     return (
@@ -116,7 +115,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     user={{
                         name: merchantUser.name,
                         app: "LDB Africa",
-                        avatar: merchantUser.avatar ?? "",
+                        avatar: "",
                     }}
                 />
             </SidebarFooter>

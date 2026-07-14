@@ -1,23 +1,26 @@
-// Types for the LDB DVA backend, as documented in the API Flow Guide.
-// NOTE: the guide documents *endpoints*, not exact field names for every
-// response. Fields marked "best effort" are our best guess from the guide
-// and should be adjusted once the live response shape is confirmed (see
-// lib/types/mappers.ts, which is the single place that would need updating).
+// Types for the LDB DVA backend, corrected against the real OpenAPI spec
+// (openapi.json) provided 2026-07-13. Where the spec itself types a
+// response as an untyped dict (e.g. /auth/me, /portal/customers,
+// /portal/transactions), we assume it mirrors the strictly-typed
+// equivalent used elsewhere in the spec (MerchantResponse, CustomerResponse,
+// TransactionResponse) since those are the same underlying models - but
+// this is still an assumption for those specific endpoints until confirmed
+// live. See lib/types/mappers.ts for where these get translated to the UI.
 
-export type MerchantStatus = "pending_kyb" | "active" | "suspended" | string
+export type MerchantStatus = "pending_kyb" | "active" | "suspended"
+export type CustomerStatus = "active" | "pending_nomba" | "suspended"
+export type AccountStatus = "active" | "closed" | "suspended"
+/** Reconciliation outcome for an inbound transfer - a property of the
+ * TRANSACTION, not the customer. */
+export type TransactionOutcome = "full" | "partial" | "overpayment" | "misdirected"
 
 export interface Merchant {
     id: string
-    full_name?: string
-    name?: string
+    name: string
     email: string
     status: MerchantStatus
-    business_name?: string
-    businessName?: string
-    phone?: string
-    avatar_url?: string
-    kyb_data?: Record<string, unknown>
-    api_key_prefix?: string
+    created_at?: string
+    updated_at?: string
 }
 
 export interface RegisterPayload {
@@ -31,36 +34,34 @@ export interface LoginPayload {
     password: string
 }
 
-// --- Onboarding -------------------------------------------------------
+// --- Onboarding ---------------------------------------------------------
 
 export interface OnboardingBusinessPayload {
     business_name: string
-    registration_number: string
-    industry: string
     trading_name?: string
     business_type?: string
     tax_id?: string
-    /* website?: string */
+    registration_number?: string
+    industry?: string
 }
 
 export interface OnboardingAddressPayload {
     address_line: string
     city: string
-    state: string
-    /* postal_code: string */
-    country: string
-    phone?: string
+    state?: string
+    country?: string
+    /** Confirmed field name from OnboardingAddressRequestSchema - NOT `phone`. */
+    business_phone?: string
     website?: string
 }
 
 export interface OnboardingVerificationPayload {
     director_name: string
-    bvn: string
+    /** Confirmed field name from OnboardingVerificationRequestSchema - NOT `bvn`. */
+    bvn_id?: string
     consent: boolean
     notes?: string
-    /** URL returned after uploading the file via /portal/onboarding/documents. */
     cac_document_url?: string
-    /** URL returned after uploading the file via /portal/onboarding/documents. */
     address_proof_url?: string
 }
 
@@ -72,77 +73,122 @@ export interface OnboardingStatus {
     kyb_status: MerchantStatus
 }
 
-// --- Customers / Accounts (backend, best effort) -----------------------
+// --- Customers / Accounts (confirmed from CustomerResponse) -------------
 
-export interface BackendAccount {
+export interface DedicatedAccountSummary {
     id: string
-    customer_id: string
     account_number: string
+    account_name: string
     bank_name: string
-    account_name?: string
-    status?: string
+    status: AccountStatus
 }
 
 export interface BackendCustomer {
     id: string
+    merchant_customer_id?: string
     name: string
-    email: string
+    email?: string
     phone?: string
-    target_amount: number | string
-    total_deposited?: number | string
+    target_amount?: number | string
+    wallet_balance: number | string
     outstanding_balance?: number | string
-    status?:
-        "underpayment" | "normal" | "misdirected" | "pending_nomba" | string
+    progress_percentage?: number
+    status: CustomerStatus
+    funding_status?: string
+    nomba_sub_account_id?: string
+    metadata?: Record<string, string>
+    dedicated_account?: DedicatedAccountSummary
     created_at?: string
-    account?: BackendAccount
-    metadata?: Record<string, unknown>
+    updated_at?: string
 }
+
+/** POST /customers and /v1/customers body - confirmed from CreateCustomerRequestSchema. */
+export interface CreateCustomerPayload {
+    /** 8-64 characters. */
+    name: string
+    email?: string
+    phone?: string
+    target_amount?: number | string
+    /** Exactly 11 characters. */
+    bvn?: string
+    metadata?: Record<string, string>
+}
+
+// --- Transactions (confirmed from TransactionResponse / StatementResponse) --
 
 export interface BackendTransaction {
     id: string
-    customer_id?: string
-    customer_name?: string
-    reference: string
+    dedicated_account_id?: string
+    nomba_request_id?: string
+    nomba_transaction_id?: string
+    /** Confirmed field name - NOT `reference`. */
+    merchant_tx_ref?: string
     amount: number | string
-    bank_name?: string
-    direction?: "credit" | "debit" | "deposit" | "withdrawal"
-    flag?: "normal" | "underpaid" | "overpaid" | "misdirected" | string
-    status?: "success" | "failed" | "pending" | string
+    fee?: number | string
+    sender_name?: string
+    sender_bank?: string
+    /** Always "inbound" - this system has no outbound/withdrawal concept. */
+    type?: "inbound"
+    /** Reconciliation outcome, NOT a success/failed flag. */
+    status: TransactionOutcome
+    /** Confirmed field name - NOT `description`. */
+    narration?: string
     created_at: string
-    description?: string
+    customer_name?: string
+}
+
+/** GET /portal/customers/{id}/statement - assumed to mirror StatementResponse. */
+export interface BackendStatement {
+    account_id?: string
+    merchant_customer_id?: string
+    customer_name?: string
+    account_number?: string
+    target_amount?: number | string
+    total_received?: number | string
+    wallet_balance?: number | string
+    outstanding_balance?: number | string
+    flagged_short_payments?: number
+    status?: string
+    transactions: BackendTransaction[]
 }
 
 export interface DashboardSummary {
     total_customers?: number
     total_deposits?: number | string
-    total_withdrawals?: number | string
     net_position?: number | string
     flagged_payments?: number
-    failed_transactions?: number
+}
+
+export interface TransactionsSummary {
+    total_deposits?: number | string
+    net_position?: number | string
+    count?: number
+}
+
+// --- Settings: webhook / profile / security / credentials / upload ------
+
+/** PUT /portal/settings/webhook body - confirmed `secret` is REQUIRED (16-255
+ * chars), and there's an `active` boolean. Both were previously missing. */
+export interface WebhookSettingsPayload {
+    url: string
+    /** Required, 16-255 characters. */
+    secret: string
+    events: string[]
+    active?: boolean
 }
 
 export interface WebhookSettings {
     url: string
     events: string[]
+    active?: boolean
     signing_secret?: string
 }
 
-export interface SimulateTransferPayload {
-    account_number: string
-    amount: string | number
-    sender_name?: string
-}
-
-// --- Settings: profile / security / credentials / file upload ---------
-
+/** UpdateProfileSettingsRequestSchema only accepts these two fields. */
 export interface MerchantProfile {
-    full_name?: string
     name?: string
-    email?: string
-    business_name?: string
     phone?: string
-    avatar_url?: string
-    language?: string
+    email?: string
 }
 
 export interface ChangePasswordPayload {
@@ -150,9 +196,6 @@ export interface ChangePasswordPayload {
     new_password: string
 }
 
-/** GET /portal/settings/credentials - the guide says this "lists API key
- * prefixes", implying possibly more than one key. We handle both a single
- * object and an array of these in the credentials hook. */
 export interface ApiKeyInfo {
     id?: string
     prefix?: string
@@ -161,15 +204,42 @@ export interface ApiKeyInfo {
     status?: string
 }
 
+/** UploadFileResponse (POST /portal/files/upload). */
 export interface UploadedFile {
-    url?: string
-    secure_url?: string
-    public_id?: string
+    url: string
+    public_id: string
+    original_filename?: string
+    file_type?: string
+    file_size?: number
+    width?: number
+    height?: number
+    format?: string
 }
 
-export interface TransactionsSummary {
-    total_deposits?: number | string
-    total_withdrawals?: number | string
-    net_position?: number | string
-    count?: number
+/** OnboardingDocumentResponseSchema (POST /portal/onboarding/documents) -
+ * note the URL field is `file_url`, not `url`/`secure_url`. */
+export interface UploadedOnboardingDocument {
+    document_type: string
+    file_url: string
+    public_id: string
+    original_filename?: string
+    file_type?: string
+    file_size?: number
+}
+
+export interface OnboardingDocumentsListResponse {
+    document: UploadedOnboardingDocument
+    documents: UploadedOnboardingDocument[]
+}
+
+/** SimulateFundingRequestSchema (POST /portal/simulate-transfer) - note
+ * `sender_name` and `sender_bank` are separate fields; there's also a
+ * dedicated `misdirected` boolean for testing that flow. */
+export interface SimulateTransferPayload {
+    /** Max 20 characters. */
+    account_number: string
+    amount: string | number
+    sender_name?: string
+    sender_bank?: string
+    misdirected?: boolean
 }

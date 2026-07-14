@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { ApiError, FE_SESSION_COOKIE, backendFetch } from "@/lib/api/backend"
 import { proxyPortalGet } from "@/lib/api/portal-proxy"
-import type { WebhookSettings } from "@/lib/types/api"
+import type { WebhookSettingsPayload } from "@/lib/types/api"
 
 export async function GET(request: NextRequest) {
     return proxyPortalGet(request, "/portal/settings/webhook")
@@ -16,7 +16,7 @@ export async function PUT(request: NextRequest) {
         )
     }
 
-    let payload: Pick<WebhookSettings, "url" | "events">
+    let payload: WebhookSettingsPayload
     try {
         payload = await request.json()
     } catch {

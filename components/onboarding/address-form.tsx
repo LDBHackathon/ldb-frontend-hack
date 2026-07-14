@@ -63,7 +63,7 @@ export function AddressForm() {
             city: result.data.city,
             state: result.data.state,
             country: result.data.country,
-            phone: result.data.businessPhone,
+            business_phone: result.data.businessPhone,
             website: result.data.website,
         })
         if (!ok) return

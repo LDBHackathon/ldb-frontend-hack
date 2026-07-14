@@ -87,7 +87,9 @@ export function useCustomer(customerId: string) {
     return useAsync<Customer | null>(fetcher, null, [customerId])
 }
 
-/** Replaces `mockTransactions` + the derived deposit/withdrawal/net totals. */
+/** Replaces `mockTransactions` + the derived deposit total. There is no
+ * real "withdrawal" concept on this backend (TransactionType is always
+ * "inbound"), so totalWithdrawals/netPosition are not meaningful here. */
 export function useTransactions() {
     const fetcher = useCallback(async () => {
         const payload = await apiRequest<unknown>("/api/portal/transactions")
@@ -104,31 +106,16 @@ export function useTransactions() {
     )
     const summary = useAsync<TransactionsSummary | null>(summaryFetcher, null)
 
-    const clientDeposits = state.data
-        .filter((t) => t.type === "deposit" && t.status === "Success")
-        .reduce((sum, t) => sum + t.amount, 0)
-    const clientWithdrawals = state.data
-        .filter((t) => t.type === "withdrawal" && t.status === "Success")
-        .reduce((sum, t) => sum + t.amount, 0)
+    const clientDeposits = state.data.reduce((sum, t) => sum + t.amount, 0)
 
     const totalDeposits =
         summary.data?.total_deposits !== undefined
             ? Number(summary.data.total_deposits)
             : clientDeposits
-    const totalWithdrawals =
-        summary.data?.total_withdrawals !== undefined
-            ? Number(summary.data.total_withdrawals)
-            : clientWithdrawals
-    const netPosition =
-        summary.data?.net_position !== undefined
-            ? Number(summary.data.net_position)
-            : totalDeposits - totalWithdrawals
 
     return {
         ...state,
         totalDeposits,
-        totalWithdrawals,
-        netPosition,
     }
 }
 

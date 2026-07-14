@@ -174,11 +174,29 @@ export function CustomerProfile({ customerId }: CustomerProfileProps) {
                     </div>
 
                     {/* Status Badge */}
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
-                        {customer.status === "Underpayment"
-                            ? "Underpaid"
-                            : customer.status}
+                    <span
+                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${
+                            customer.status === "active"
+                                ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                                : customer.status === "suspended"
+                                  ? "bg-rose-500/10 text-rose-500 border-rose-500/20"
+                                  : "bg-amber-500/10 text-amber-500 border-amber-500/20"
+                        }`}
+                    >
+                        <span
+                            className={`h-1.5 w-1.5 rounded-full ${
+                                customer.status === "active"
+                                    ? "bg-emerald-500"
+                                    : customer.status === "suspended"
+                                      ? "bg-rose-500"
+                                      : "bg-amber-500"
+                            }`}
+                        ></span>
+                        {customer.status === "active"
+                            ? "Active"
+                            : customer.status === "suspended"
+                              ? "Suspended"
+                              : "Setting up"}
                     </span>
                 </div>
 
@@ -289,8 +307,10 @@ export function CustomerProfile({ customerId }: CustomerProfileProps) {
                                 className="appearance-none flex items-center justify-between border border-slate-200 rounded-lg pl-3 pr-8 py-1.5 text-xs font-medium bg-white text-slate-700 min-w-[110px] shadow-2xs cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-slate-300"
                             >
                                 <option value="all">All flags</option>
-                                <option value="underpayment">Underpaid</option>
-                                <option value="reversed">Reversed</option>
+                                <option value="Full">Full</option>
+                                <option value="Partial">Partial</option>
+                                <option value="Overpayment">Overpayment</option>
+                                <option value="Misdirected">Misdirected</option>
                             </select>
                             <ChevronDown className="h-3.5 w-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                         </div>
@@ -331,10 +351,10 @@ export function CustomerProfile({ customerId }: CustomerProfileProps) {
                         <TableBody>
                             {filteredTransactions.length > 0 ? (
                                 filteredTransactions.map((txn, index) => {
-                                    const isReversed =
-                                        txn.tags?.includes("Reversed") ||
-                                        txn.flag === "Reversed" ||
-                                        txn.amount === 0
+                                    const outcome = txn.tags?.[0] ?? "Full"
+                                    const isProblem =
+                                        outcome === "Misdirected" ||
+                                        outcome === "Partial"
                                     return (
                                         <TableRow
                                             key={index}
@@ -350,7 +370,7 @@ export function CustomerProfile({ customerId }: CustomerProfileProps) {
                                                 {txn.description}
                                             </TableCell>
                                             <TableCell
-                                                className={`px-5 py-4 text-sm font-bold font-mono ${isReversed ? "text-rose-500" : "text-slate-900"}`}
+                                                className={`px-5 py-4 text-sm font-bold font-mono ${isProblem ? "text-rose-500" : "text-slate-900"}`}
                                             >
                                                 ₦
                                                 {txn.amount.toLocaleString(
@@ -359,17 +379,18 @@ export function CustomerProfile({ customerId }: CustomerProfileProps) {
                                                 )}
                                             </TableCell>
                                             <TableCell className="px-5 py-4">
-                                                {isReversed ? (
-                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-rose-50 text-rose-600 border border-rose-100">
-                                                        <span className="h-1.5 w-1.5 rounded-full bg-rose-500"></span>
-                                                        Reversed
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-600 border border-amber-100">
-                                                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
-                                                        Underpaid
-                                                    </span>
-                                                )}
+                                                <span
+                                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${
+                                                        isProblem
+                                                            ? "bg-rose-50 text-rose-600 border-rose-100"
+                                                            : "bg-emerald-50 text-emerald-600 border-emerald-100"
+                                                    }`}
+                                                >
+                                                    <span
+                                                        className={`h-1.5 w-1.5 rounded-full ${isProblem ? "bg-rose-500" : "bg-emerald-500"}`}
+                                                    ></span>
+                                                    {outcome}
+                                                </span>
                                             </TableCell>
                                         </TableRow>
                                     )

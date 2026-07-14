@@ -47,6 +47,7 @@ export function ApiSettings() {
 
     const [webhookUrl, setWebhookUrl] = useState("")
     const [selectedEvents, setSelectedEvents] = useState<string[]>([])
+    const [webhookSecret, setWebhookSecret] = useState("")
     const [revealSecret, setRevealSecret] = useState(false)
 
     useEffect(() => {
@@ -61,6 +62,15 @@ export function ApiSettings() {
             setSelectedEvents(webhook.events ?? [])
         }
     }, [webhook])
+
+    const generateSecret = () => {
+        const bytes = new Uint8Array(24)
+        crypto.getRandomValues(bytes)
+        const secret = Array.from(bytes, (b) =>
+            b.toString(16).padStart(2, "0")
+        ).join("")
+        setWebhookSecret(secret)
+    }
 
     const toggleEvent = (event: string) => {
         setSelectedEvents((prev) =>
@@ -240,7 +250,7 @@ export function ApiSettings() {
                     {webhook?.signing_secret && (
                         <div className="space-y-2">
                             <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                                Webhook Signing Secret
+                                Current Signing Secret
                             </label>
                             <div className="flex gap-2">
                                 <Input
@@ -263,6 +273,40 @@ export function ApiSettings() {
                             </div>
                         </div>
                     )}
+
+                    <div className="space-y-2">
+                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                            Signing Secret (required, 16+ characters)
+                        </label>
+                        <div className="flex gap-2">
+                            <Input
+                                type={revealSecret ? "text" : "password"}
+                                value={webhookSecret}
+                                onChange={(e) => setWebhookSecret(e.target.value)}
+                                placeholder="Used to verify webhook payloads came from us"
+                                className="h-11 flex-1 font-mono text-sm"
+                            />
+                            <Button
+                                variant="outline"
+                                className="h-11 px-3 text-slate-700"
+                                onClick={() => setRevealSecret((v) => !v)}
+                            >
+                                <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                variant="outline"
+                                className="h-11 px-4 text-slate-700"
+                                onClick={generateSecret}
+                            >
+                                Generate
+                            </Button>
+                        </div>
+                        <p className="text-xs text-slate-400">
+                            Required by the backend on every save - re-enter
+                            or regenerate it even when updating just the URL
+                            or events.
+                        </p>
+                    </div>
 
                     <div className="space-y-3">
                         <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
@@ -292,7 +336,15 @@ export function ApiSettings() {
                     <div className="flex gap-4 pt-4 border-t border-slate-100">
                         <Button
                             className="bg-[#48b79f] hover:bg-[#3ca08a] text-white"
-                            onClick={() => save(webhookUrl, selectedEvents)}
+                            onClick={() => {
+                                if (webhookSecret.length < 16) {
+                                    toast.error(
+                                        "Signing secret must be at least 16 characters"
+                                    )
+                                    return
+                                }
+                                save(webhookUrl, selectedEvents, webhookSecret)
+                            }}
                             disabled={isSaving || !webhookUrl}
                         >
                             {isSaving ? "Saving…" : "Save webhook"}

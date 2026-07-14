@@ -3,17 +3,29 @@
 import { useCallback, useState } from "react"
 import { toast } from "sonner"
 import { ClientApiError } from "@/lib/api/client"
-import type { UploadedFile } from "@/lib/types/api"
+import type { OnboardingDocumentsListResponse, UploadedFile } from "@/lib/types/api"
 
 function extractUrl(payload: unknown): string | null {
     if (!payload || typeof payload !== "object") return null
-    const obj = payload as UploadedFile & Record<string, unknown>
-    const url =
-        obj.secure_url ??
-        obj.url ??
-        (obj.data as UploadedFile | undefined)?.secure_url ??
-        (obj.data as UploadedFile | undefined)?.url
-    return typeof url === "string" ? url : null
+    const obj = payload as Partial<UploadedFile> &
+        Partial<OnboardingDocumentsListResponse> &
+        Record<string, unknown>
+
+    // POST /portal/files/upload -> UploadFileResponse.url
+    if (typeof obj.url === "string") return obj.url
+
+    // POST /portal/onboarding/documents -> OnboardingDocumentsListResponseSchema.document.file_url
+    if (obj.document && typeof obj.document.file_url === "string") {
+        return obj.document.file_url
+    }
+    if (
+        Array.isArray(obj.documents) &&
+        typeof obj.documents[0]?.file_url === "string"
+    ) {
+        return obj.documents[0].file_url
+    }
+
+    return null
 }
 
 /**

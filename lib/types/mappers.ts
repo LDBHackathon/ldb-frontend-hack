@@ -1,10 +1,13 @@
 import type { Customer, Transaction, TransactionData } from "@/lib/mockData"
 import type { BackendCustomer, BackendTransaction } from "@/lib/types/api"
 
-// This file is the ONE place that should need edits once the live backend's
-// exact field names are confirmed (see clarifying questions raised before
-// implementation) - the rest of the app keeps using the existing
-// Customer / Transaction / TransactionData shapes from lib/mockData.ts.
+// Field mappings here are confirmed against the real OpenAPI spec
+// (2026-07-13). Two endpoints we rely on - GET /portal/customers and
+// GET /portal/transactions - are still typed as untyped dicts in that spec,
+// so we assume they mirror CustomerResponse/TransactionResponse (the
+// strictly-typed equivalents used by the developer endpoints on the same
+// underlying models). If that assumption is wrong, this file is still the
+// one place to correct it.
 
 function toNumber(value: number | string | undefined | null): number {
     if (value === undefined || value === null) return 0
@@ -35,67 +38,57 @@ function formatDate(iso?: string): string {
     }
 }
 
-/** underpayment/normal/misdirected -> UI status label used across components */
-export function mapCustomerStatus(status?: string): Customer["status"] {
-    switch ((status ?? "").toLowerCase()) {
+/** CustomerStatus (active/pending_nomba/suspended) -> UI label.
+ * This is the customer's account-provisioning status, unrelated to
+ * payment reconciliation. */
+export function mapCustomerStatus(status: string): Customer["status"] {
+    switch (status) {
+        case "suspended":
+            return "suspended"
+        case "pending_nomba":
+            return "pending_nomba"
+        case "active":
+        default:
+            return "active"
+    }
+}
+
+/** TransactionStatus (full/partial/overpayment/misdirected) -> UI label.
+ * This is the transaction's reconciliation OUTCOME - the real backend has
+ * no separate success/failed field; every recorded transaction succeeded
+ * in being processed, "misdirected"/"partial" describe amount mismatches,
+ * not failures. */
+export function mapTransactionFlag(
+    outcome: string
+): TransactionData["flag"] {
+    switch (outcome) {
+        case "partial":
+            return "Partial"
+        case "overpayment":
+            return "Overpayment"
         case "misdirected":
             return "Misdirected"
-        case "normal":
-            return "Normal"
-        case "underpayment":
-        case "underpaid":
-        case "pending_nomba":
+        case "full":
         default:
-            return "Underpayment"
+            return "Full"
     }
-}
-
-/** payment.partial / payment.misdirected / normal -> UI flag label */
-export function mapTransactionFlag(flag?: string): TransactionData["flag"] {
-    switch ((flag ?? "").toLowerCase()) {
-        case "overpaid":
-        case "payment.overpaid":
-            return "Overpaid"
-        case "underpaid":
-        case "payment.partial":
-            return "Underpaid"
-        default:
-            return "Normal"
-    }
-}
-
-export function mapTransactionStatus(
-    status?: string
-): TransactionData["status"] {
-    return (status ?? "").toLowerCase() === "failed" ? "Failed" : "Success"
-}
-
-export function mapTransactionType(
-    direction?: string
-): TransactionData["type"] {
-    return direction === "debit" || direction === "withdrawal"
-        ? "withdrawal"
-        : "deposit"
 }
 
 export function mapBackendTransactionToDetail(
     txn: BackendTransaction
 ): Transaction {
-    const flagLabel = mapTransactionFlag(txn.flag)
-    const tags = (txn.flag ?? "").toLowerCase().includes("misdirect")
-        ? ["Misdirected"]
-        : [flagLabel]
+    const flagLabel = mapTransactionFlag(txn.status)
 
     return {
         id: txn.id,
         date: formatDate(txn.created_at),
-        reference: txn.reference,
+        reference: txn.merchant_tx_ref ?? txn.nomba_request_id ?? txn.id,
         description:
-            txn.description ??
-            `Inbound bank transfer${txn.bank_name ? ` · ${txn.bank_name}` : ""}`,
+            txn.narration ??
+            `Inbound bank transfer${txn.sender_bank ? ` · ${txn.sender_bank}` : ""}`,
         amount: toNumber(txn.amount),
-        bank: txn.bank_name ?? "",
-        tags,
+        bank: txn.sender_bank ?? "",
+        tags: [flagLabel],
     }
 }
 
@@ -105,13 +98,14 @@ export function mapBackendTransactionToRow(
     return {
         id: txn.id,
         customerName: txn.customer_name ?? "",
-        bank: txn.bank_name ?? "",
-        reference: txn.reference,
+        bank: txn.sender_bank ?? "",
+        reference: txn.merchant_tx_ref ?? txn.nomba_request_id ?? txn.id,
         date: formatDate(txn.created_at),
-        type: mapTransactionType(txn.direction),
+        // This system only ever records inbound transfers - there is no
+        // real "withdrawal" transaction type on the backend.
+        type: "deposit",
         amount: toNumber(txn.amount),
-        flag: mapTransactionFlag(txn.flag),
-        status: mapTransactionStatus(txn.status),
+        flag: mapTransactionFlag(txn.status),
     }
 }
 
@@ -120,28 +114,33 @@ export function mapBackendCustomerToUI(
     transactions: BackendTransaction[] = []
 ): Customer {
     const targetAmount = toNumber(customer.target_amount)
-    const totalDeposited = toNumber(customer.total_deposited)
+    // Confirmed real fields: wallet_balance, outstanding_balance,
+    // progress_percentage are all provided directly by the backend - no
+    // need to compute them client-side.
+    const walletBalance = toNumber(customer.wallet_balance)
     const outstandingBalance =
         customer.outstanding_balance !== undefined
             ? toNumber(customer.outstanding_balance)
-            : Math.max(targetAmount - totalDeposited, 0)
+            : Math.max(targetAmount - walletBalance, 0)
     const progressPercentage =
-        targetAmount > 0
-            ? Math.min(100, Math.round((totalDeposited / targetAmount) * 100))
-            : 0
+        customer.progress_percentage !== undefined
+            ? Math.round(customer.progress_percentage)
+            : targetAmount > 0
+              ? Math.min(100, Math.round((walletBalance / targetAmount) * 100))
+              : 0
 
     return {
         id: customer.id,
         name: customer.name,
-        email: customer.email,
-        nuban: customer.account?.account_number ?? "",
-        bank: customer.account?.bank_name ?? "",
+        email: customer.email ?? "",
+        nuban: customer.dedicated_account?.account_number ?? "",
+        bank: customer.dedicated_account?.bank_name ?? "",
         clientName: "",
         dateJoined: formatDate(customer.created_at),
-        avatar: initials(customer.name || customer.email),
+        avatar: initials(customer.name || customer.email || "?"),
         status: mapCustomerStatus(customer.status),
         targetAmount,
-        totalDeposited,
+        totalDeposited: walletBalance,
         outstandingBalance,
         progressPercentage,
         transactions: transactions.map(mapBackendTransactionToDetail),

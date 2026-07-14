@@ -23,10 +23,14 @@ export function ProfileSettings() {
     const { upload, isUploading } = useFileUpload("/api/portal/files/upload")
     const fileInputRef = useRef<HTMLInputElement>(null)
 
-    const [fullName, setFullName] = useState("")
-    const [email, setEmail] = useState("")
+    // Confirmed real fields (UpdateProfileSettingsRequestSchema): name, phone.
+    // Email is shown read-only (identity, not editable from this form -
+    // the backend doesn't accept it in the profile PATCH).
+    const [name, setName] = useState("")
     const [phone, setPhone] = useState("")
-    const [language, setLanguage] = useState("English (UK)")
+    // The avatar upload endpoint (POST /portal/files/upload) is real, but
+    // there's no confirmed field on the merchant profile to persist the
+    // resulting URL - so this is local-session-only for now.
     const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined)
 
     useEffect(() => {
@@ -36,11 +40,8 @@ export function ProfileSettings() {
 
     useEffect(() => {
         if (!profile) return
-        setFullName(profile.full_name ?? profile.name ?? "")
-        setEmail(profile.email ?? "")
+        setName(profile.name ?? "")
         setPhone(profile.phone ?? "")
-        setLanguage(profile.language ?? "English (UK)")
-        setAvatarUrl(profile.avatar_url)
     }, [profile])
 
     const handlePhotoChange = async (
@@ -54,13 +55,7 @@ export function ProfileSettings() {
     }
 
     const handleSave = async () => {
-        await save({
-            full_name: fullName,
-            email,
-            phone,
-            language,
-            avatar_url: avatarUrl,
-        })
+        await save({ name, phone })
     }
 
     return (
@@ -91,11 +86,11 @@ export function ProfileSettings() {
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                             src={avatarUrl}
-                            alt={fullName || "Avatar"}
+                            alt={name || "Avatar"}
                             className="h-full w-full object-cover"
                         />
                     ) : (
-                        initials(fullName || "?") || "?"
+                        initials(name || "?") || "?"
                     )}
                 </div>
                 <div>
@@ -116,7 +111,7 @@ export function ProfileSettings() {
                         {isUploading ? "Uploading..." : "Change photo"}
                     </Button>
                     <p className="text-xs text-slate-500">
-                        JPG or PNG · max 2MB
+                        JPG or PNG · max 2MB · shown for this session only
                     </p>
                 </div>
             </div>
@@ -128,21 +123,21 @@ export function ProfileSettings() {
                         Full name
                     </label>
                     <Input
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
                         placeholder={isLoading ? "Loading…" : "Full name"}
                         className="h-11"
                     />
                 </div>
                 <div className="space-y-2">
                     <label className="text-sm font-medium text-slate-700">
-                        Work email
+                        Email
                     </label>
                     <Input
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder={isLoading ? "Loading…" : "Work email"}
-                        className="h-11"
+                        readOnly
+                        value={profile?.email ?? ""}
+                        placeholder={isLoading ? "Loading…" : "—"}
+                        className="h-11 bg-slate-50"
                     />
                 </div>
                 <div className="space-y-2">
@@ -153,16 +148,6 @@ export function ProfileSettings() {
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                         placeholder={isLoading ? "Loading…" : "Phone number"}
-                        className="h-11"
-                    />
-                </div>
-                <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700">
-                        Language
-                    </label>
-                    <Input
-                        value={language}
-                        onChange={(e) => setLanguage(e.target.value)}
                         className="h-11"
                     />
                 </div>

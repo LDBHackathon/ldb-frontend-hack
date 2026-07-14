@@ -111,7 +111,7 @@ export function VerificationForm() {
 
         const ok = await submit({
             director_name: result.data.directorName ?? "",
-            bvn: result.data.bvnId ?? "",
+            bvn_id: result.data.bvnId ?? "",
             consent: result.data.consent,
             notes: result.data.notes,
             cac_document_url: cacDocumentUrl || undefined,

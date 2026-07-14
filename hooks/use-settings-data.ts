@@ -109,12 +109,12 @@ export function useWebhookSettings() {
     }, [])
 
     const save = useCallback(
-        async (url: string, events: string[]) => {
+        async (url: string, events: string[], secret: string, active = true) => {
             setIsSaving(true)
             try {
                 await apiRequest("/api/portal/settings/webhook", {
                     method: "PUT",
-                    body: { url, events },
+                    body: { url, events, secret, active },
                     silent: true,
                 })
                 toast.success("Webhook saved")
