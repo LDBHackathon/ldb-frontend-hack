@@ -85,28 +85,22 @@ export default function Page() {
 
                 {menuOpen && (
                     <div className="flex flex-col gap-3 border-t border-white/10 px-5 py-4 md:hidden">
-                        <Link href="/api-doc">
-                            <span className="text-sm text-slate-400">
-                                API Documentation
-                            </span>
-                        </Link>
-                        <Link href="/login">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="w-full border-white/15 text-slate-100"
-                            >
-                                Sign in
-                            </Button>
-                        </Link>
-                        <Link href="/onboarding/account">
-                            <Button
-                                size="sm"
-                                className="w-full bg-teal-400 text-[#06251f] hover:bg-teal-300"
-                            >
-                                Get API access
-                            </Button>
-                        </Link>
+                        <span className="text-sm text-slate-400">
+                            API Documentation
+                        </span>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full border-white/15 text-slate-100"
+                        >
+                            Sign in
+                        </Button>
+                        <Button
+                            size="sm"
+                            className="w-full bg-teal-400 text-[#06251f] hover:bg-teal-300"
+                        >
+                            Get API access
+                        </Button>
                     </div>
                 )}
             </header>

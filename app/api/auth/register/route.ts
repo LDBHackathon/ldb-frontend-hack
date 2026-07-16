@@ -42,11 +42,12 @@ export async function POST(request: NextRequest) {
         })
 
         if (!response.ok || data?.status === "failure") {
-            const message = (data?.message as string) ?? "Registration failed"
-            return NextResponse.json(
-                { message },
-                { status: data?.status_code ?? response.status }
-            )
+            const status = data?.status_code ?? response.status
+            const message =
+                status === 409
+                    ? "An account with this email already exists. Try signing in instead."
+                    : ((data?.message as string) ?? "Registration failed")
+            return NextResponse.json({ message }, { status })
         }
 
         const sessionCookie = extractSessionCookie(response)
