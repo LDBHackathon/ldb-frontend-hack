@@ -10,7 +10,7 @@
  */
 
 const BACKEND_URL =
-    process.env.BACKEND_API_URL
+    process.env.BACKEND_API_URL ?? "https://hackathon-api.ldbafrica.com"
 
 export const FE_SESSION_COOKIE = "ldb_fe_session"
 /** Stores the merchant's Bearer API key, httpOnly, never sent to the browser. */
